@@ -12,7 +12,7 @@
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/hero-dark.svg">
     <source media="(prefers-color-scheme: light)" srcset="assets/hero-light.svg">
-    <img alt="Sleepless — keep your Mac awake with the lid closed" src="assets/hero-light.svg" width="760">
+    <img alt="Sleepless: keep your Mac awake with the lid closed" src="assets/hero-light.svg" width="760">
   </picture>
 </p>
 
@@ -112,7 +112,7 @@ display** is connected. Sleepless is the purpose-built, open-source tool for the
 | | **Sleepless** | Amphetamine | KeepingYouAwake | Macchiato | Clapet | `caffeinate` |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|
 | Awake, lid closed, on battery | ✅ | ✅¹ | ❌ (refused) | ✅ | ⚠️ needs ext. display | ❌ |
-| No external display needed | ✅ | ✅ | — | ✅ | ❌ | — |
+| No external display needed | ✅ | ✅ | n/a | ✅ | ❌ | n/a |
 | Battery-floor auto-off | ✅ | end-session on low batt | ✅ (but no lid-closed) | ❌ | ❌ | ❌ |
 | Mechanism | `pmset disablesleep` + scoped sudoers | public API ≈ `disablesleep` + IOKit | `caffeinate` | `pmset disablesleep` + helper | `pmset` + sudoers | IOKit assertion |
 | Open source | ✅ MIT | ❌ (App Store) | ✅ MIT | ✅ Apache-2.0 | ✅ GPL-3.0 | Apple built-in |
