@@ -1,0 +1,12 @@
+# Sleepless passwordless grant — template.
+#
+# install.sh substitutes __USER__ with your login name ($(id -un)) and installs
+# the result to /etc/sudoers.d/sleepless-disablesleep, owned root:wheel, mode 0440.
+#
+# It grants ONE user the right to run, as root, EXACTLY these two fully-specified
+# commands and NOTHING else. sudoers matches command arguments literally (there are
+# no wildcards here), so this grant cannot be widened by appending other flags —
+# `sudo pmset -a sleep 0`, `pmset restoredefaults`, etc. all fall through and demand
+# a password. The only thing it lets Sleepless do without a prompt is flip lid-close
+# sleep on (1) or off (0). See SECURITY.md for the full threat model.
+__USER__ ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1

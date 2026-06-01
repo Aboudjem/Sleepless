@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security report
+    url: https://github.com/Aboudjem/Sleepless/blob/main/SECURITY.md
+    about: Please report security issues privately by email — see SECURITY.md. Do not open a public issue.
+  - name: Question / discussion
+    url: https://github.com/Aboudjem/Sleepless/discussions
+    about: Ask a question, share a setup, or discuss an idea before filing an issue.

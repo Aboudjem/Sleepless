@@ -1,0 +1,23 @@
+# Build output
+build/
+*.app/
+Sleepless.iconset/
+
+# Compiled binaries / intermediates
+*.o
+*.swiftmodule
+*.dSYM/
+
+# Release artifacts (built by build.sh / CI, attached to GitHub Releases)
+*.zip
+
+# macOS cruft
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# Editor / tooling
+.vscode/
+.idea/
+*.swp

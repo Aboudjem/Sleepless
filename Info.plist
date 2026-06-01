@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleExecutable</key>          <string>Sleepless</string>
+    <key>CFBundleIdentifier</key>          <string>com.aboudjem.Sleepless</string>
+    <key>CFBundleName</key>                <string>Sleepless</string>
+    <key>CFBundleDisplayName</key>         <string>Sleepless</string>
+    <key>CFBundlePackageType</key>         <string>APPL</string>
+    <key>CFBundleIconFile</key>            <string>Sleepless</string>
+    <key>CFBundleShortVersionString</key>  <string>1.0.0</string>
+    <key>CFBundleVersion</key>             <string>1.0.0</string>
+    <key>LSMinimumSystemVersion</key>      <string>26.0</string>
+    <key>LSUIElement</key>                 <true/>
+    <key>NSHumanReadableCopyright</key>    <string>Copyright © 2026 Adam Boudjemaa. MIT License.</string>
+</dict>
+</plist>

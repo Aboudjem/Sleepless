@@ -1,0 +1,37 @@
+name: Feature request
+description: Suggest an idea for Sleepless
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Sleepless is deliberately small. Features that grow the privilege surface (more
+        sudo, a helper daemon, a kext) are unlikely to land — the tight security model is a
+        core feature. Ideas that keep it small, native, and honest are very welcome.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe the use case, not just the feature.
+      placeholder: When I'm running an overnight build I want…
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: false
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered
+    validations:
+      required: false
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This does not require additional sudo privileges or a background daemon/kext.
+          required: false

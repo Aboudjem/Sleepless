@@ -1,0 +1,69 @@
+name: Bug report
+description: Something isn't working the way it should
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Sleepless is verified on macOS 26 (Tahoe) / Apple Silicon;
+        behavior elsewhere isn't guaranteed because `disablesleep` is undocumented — please
+        include your versions below so we can tell drift from a real bug.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead?
+      placeholder: I turned Sleepless on, closed the lid, and the Mac still slept…
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Click the moon in the menu bar
+        2. Toggle the switch on
+        3. Close the lid (on battery)
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      description: "Output of: sw_vers -productVersion"
+      placeholder: "26.5"
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Mac model
+      description: "Output of: sysctl -n hw.model"
+      placeholder: "Mac17,7"
+    validations:
+      required: true
+  - type: input
+    id: sleepdisabled
+    attributes:
+      label: pmset state
+      description: "Output of: pmset -g | grep SleepDisabled"
+      placeholder: "SleepDisabled 1"
+    validations:
+      required: false
+  - type: dropdown
+    id: install-method
+    attributes:
+      label: How did you install Sleepless?
+      options:
+        - Built from source (build.sh / install.sh)
+        - Downloaded the release .zip
+        - Homebrew tap (brew install --cask)
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs / console output
+      render: shell
+    validations:
+      required: false
