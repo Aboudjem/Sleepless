@@ -96,6 +96,36 @@ guarantee: signed, notarized macOS stealers have shipped.)
   Open Anyway**, then confirm. Note: macOS 15 (Sequoia) **removed** the old
   right-click → Open bypass, so the System Settings path is the supported flow on macOS 15+.
 
+## Why Sleepless can't be on the Mac App Store
+
+Some people trust App Store apps more, so it is worth saying plainly: Sleepless can never
+ship there, and that is a property of what it does, not an oversight.
+
+App Review **§2.4.5(v)** states apps "may not request escalation to root privileges or use
+setuid attributes." The passwordless root `pmset` toggle is exactly that, so it is the
+decisive block. Two more rules independently rule it out: **§2.4.5(i)** (apps must be
+sandboxed, and the sandbox has no entitlement for root or arbitrary system-file writes) and
+**§2.5.2 / §2.4.5(ii)** (apps must be self-contained in their bundle and may not write
+outside their container, which the `/etc/sudoers.d` drop-in does). A privileged-helper
+workaround does not rescue it either: a helper installed from a sandboxed app must itself be
+sandboxed, so it still cannot write `/etc/sudoers.d` or run arbitrary root commands.
+
+The practical consequence: Sleepless is **direct-download / Homebrew only**, by design. The
+verification steps below, plus building from source, are how trust is established instead.
+
+## Verifying a download
+
+If you grab a prebuilt release instead of building it, you can confirm it is genuinely this
+project's build, with no Apple account and no shared secret:
+
+```sh
+shasum -a 256 -c SHA256SUMS                                  # bytes match what was published
+gh attestation verify Sleepless-<version>.app.zip -R Aboudjem/Sleepless   # built by this repo's release workflow
+```
+
+The full walkthrough (what each check proves, how to reproduce the build, and a VirusTotal
+scan) is in **[docs/AUDIT.md](docs/AUDIT.md)**.
+
 ## Completely removing the privilege
 
 `./uninstall.sh` restores normal sleep, removes the app and login item, deletes the
@@ -111,3 +141,5 @@ for a password again. The single file to audit or delete by hand is
 - Apple — Safely open apps / Open Anyway flow: https://support.apple.com/en-us/102445
 - Apple Developer — Sequoia removes Control-click Gatekeeper bypass: https://developer.apple.com/news/?id=saqachfa
 - Living without notarization (ad-hoc + quarantine behavior): https://eclecticlight.co/2024/10/01/living-without-notarization/
+- App Store Review Guidelines (§2.4.5 root escalation / sandbox / self-contained): https://developer.apple.com/app-store/review/guidelines/
+- GitHub artifact attestations (build provenance, SLSA): https://docs.github.com/en/actions/security-guides/using-artifact-attestations-to-establish-provenance-for-builds
