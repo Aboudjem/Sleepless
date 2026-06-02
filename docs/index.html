@@ -1,13 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sleepless: keep your Mac awake with the lid closed</title>
 <meta name="description" content="Sleepless keeps your MacBook awake with the lid closed, on battery, with no external display. A native menu-bar app using pmset disablesleep, with an auto-off timer and a battery-floor cutoff. Open source, MIT.">
 <link rel="canonical" href="https://aboudjem.github.io/Sleepless/">
-<meta name="theme-color" content="#FBFAF8" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#16140F" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#0A0A14">
 
 <meta property="og:type" content="website">
 <meta property="og:title" content="Sleepless: keep your Mac awake with the lid closed">
@@ -24,7 +23,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 
 <script type="application/ld+json">
 {
@@ -53,165 +52,248 @@
 }
 </script>
 
+<script>document.documentElement.classList.add('js');</script>
 <style>
   :root{
-    --bg:#FBFAF8; --bg-elevated:#FFFFFF; --bg-sunken:#F2F0EC;
-    --ink:#1A1714; --ink-2:#52493F; --ink-3:#8A7F73; --line:#E7E2DA;
-    --accent:#B45309; --accent-hover:#92400E; --accent-soft:#FDF3E7;
-    --ok:#15803D; --no:#B42318; --warn:#B45309; --btn-ink:#FFFFFF;
-    --maxw:1040px; --radius:12px;
-    --shadow-sm:0 1px 2px rgba(26,23,20,.06),0 1px 1px rgba(26,23,20,.04);
-    --shadow-lg:0 24px 60px -20px rgba(26,23,20,.22),0 8px 20px -12px rgba(26,23,20,.14);
-    --font-sans:"Inter Tight","Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-    --font-body:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-    --font-mono:ui-monospace,"SF Mono","Berkeley Mono",Menlo,monospace;
+    --bg:#0A0A14; --bg-2:#0C0A18; --surface:#14122A; --elevated:#1B1838; --sunken:#08070F;
+    --glass:rgba(26,23,52,.55); --glass-2:rgba(30,27,62,.42);
+    --glass-brd:rgba(168,150,255,.18); --glass-hi:rgba(255,255,255,.30);
+    --ink:#F2F0FB; --ink-2:#C7C3E4; --ink-3:#9D99C2; --line:#262445;
+    --accent:#A78BFA; --accent-strong:#8B5CF6;
+    --indigo:#6366F1; --violet:#8B5CF6; --fuchsia:#D946EF;
+    --bloom-1:#6D5BFF; --bloom-2:#D026D3;
+    --ok:#34D399; --no:#FB7185; --warn:#FBBF24; --btn-ink:#0A0A14;
+    --grad:linear-gradient(135deg,#6366F1 0%,#8B5CF6 50%,#D946EF 100%);
+    --grad-soft:linear-gradient(135deg,rgba(99,102,241,.18),rgba(139,92,246,.16),rgba(217,70,239,.16));
+    --maxw:1080px; --radius:16px;
+    --shadow-lg:0 28px 70px -24px rgba(0,0,0,.7),0 8px 24px -14px rgba(0,0,0,.5);
+    --glass-shadow:inset 0 1.5px 0 var(--glass-hi),inset 0 -1px 0 rgba(0,0,0,.25),0 24px 60px -22px rgba(0,0,0,.6);
+    --font-sans:"Geist",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --font-mono:"Geist Mono",ui-monospace,"SF Mono","Berkeley Mono",Menlo,monospace;
   }
-  @media (prefers-color-scheme:dark){
-    :root{
-      --bg:#16140F; --bg-elevated:#211D17; --bg-sunken:#1C1813;
-      --ink:#F4F0E8; --ink-2:#C2B8A8; --ink-3:#8A7F6F; --line:#332D24;
-      --accent:#F0A35E; --accent-hover:#F6B878; --accent-soft:#241B12;
-      --ok:#4ADE80; --no:#F87171; --warn:#F0A35E; --btn-ink:#1A1714;
-      --shadow-lg:0 24px 60px -20px rgba(0,0,0,.6),0 8px 20px -12px rgba(0,0,0,.4);
-    }
-  }
+  @property --angle{ syntax:"<angle>"; inherits:false; initial-value:0deg; }
+
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
   body{
     margin:0; background:var(--bg); color:var(--ink);
-    font-family:var(--font-body); font-size:16px; line-height:1.55;
+    font-family:var(--font-sans); font-size:16px; line-height:1.6;
     -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+    font-feature-settings:"kern","liga","calt"; overflow-x:hidden;
   }
   a{color:var(--accent); text-decoration:none}
-  a:hover{color:var(--accent-hover); text-decoration:underline}
-  h1,h2,h3{font-family:var(--font-sans); letter-spacing:-.015em; margin:0}
-  code{font-family:var(--font-mono); font-size:.9em; background:var(--bg-sunken); color:var(--accent); padding:1px 6px; border-radius:5px; border:1px solid var(--line)}
-  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 24px}
-  .eyebrow{font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); font-weight:600; margin:0 0 10px}
-  h2.sec{font-size:clamp(26px,3.4vw,34px); font-weight:700; margin:0 0 10px}
-  .lead{color:var(--ink-2); max-width:64ch; font-size:18px; margin:0}
-  section{padding:80px 0}
-  @media(max-width:640px){section{padding:52px 0}}
+  a:hover{color:#C4B5FD; text-decoration:underline}
+  h1,h2,h3{font-family:var(--font-sans); letter-spacing:-.02em; margin:0; color:var(--ink)}
+  code{font-family:var(--font-mono); font-size:.88em; background:rgba(124,122,160,.14); color:#C4B5FD; padding:1px 6px; border-radius:6px; border:1px solid var(--line)}
+  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 24px; position:relative}
+  .eyebrow{font-size:12.5px; letter-spacing:.13em; text-transform:uppercase; font-weight:700; margin:0 0 12px;
+    background:linear-gradient(90deg,#A78BFA,#E879F9); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; width:fit-content}
+  @media(max-width:860px){.eyebrow{margin-inline:auto}}
+  h2.sec{font-size:clamp(28px,3.6vw,38px); font-weight:600; line-height:1.1; margin:0 0 12px; letter-spacing:-.025em}
+  .lead{color:var(--ink-2); max-width:60ch; font-size:18px; margin:0}
+  section{padding:92px 0; position:relative}
+  @media(max-width:640px){section{padding:60px 0}}
 
-  /* Nav */
-  .nav{position:sticky; top:0; z-index:50; backdrop-filter:saturate(120%) blur(12px); background:color-mix(in srgb, var(--bg) 82%, transparent); border-bottom:1px solid transparent; transition:border-color .2s ease}
-  .nav.scrolled{border-bottom-color:var(--line)}
-  .nav-in{display:flex; align-items:center; justify-content:space-between; max-width:var(--maxw); margin:0 auto; padding:14px 24px}
-  .brand{display:flex; align-items:center; gap:10px; font-family:var(--font-sans); font-weight:700; font-size:18px; color:var(--ink)}
+  /* ---------- Atmosphere: aurora + grain ---------- */
+  .aurora{position:fixed; inset:0; z-index:-2; overflow:hidden; pointer-events:none}
+  .aurora span{position:absolute; border-radius:50%; filter:blur(70px); opacity:.55; will-change:transform}
+  .b1{width:62vw; height:62vw; left:-12vw; top:-22vw; background:radial-gradient(circle at 50% 50%,var(--bloom-1),transparent 66%); animation:drift1 34s ease-in-out infinite alternate}
+  .b2{width:48vw; height:48vw; right:-10vw; top:-6vw; background:radial-gradient(circle at 50% 50%,var(--fuchsia),transparent 66%); opacity:.30; animation:drift2 40s ease-in-out infinite alternate}
+  .b3{width:50vw; height:50vw; left:18vw; top:48vh; background:radial-gradient(circle at 50% 50%,var(--violet),transparent 68%); opacity:.22; animation:drift3 46s ease-in-out infinite alternate}
+  @keyframes drift1{from{transform:translate3d(0,0,0) scale(1)}to{transform:translate3d(8vw,6vh,0) scale(1.12)}}
+  @keyframes drift2{from{transform:translate3d(0,0,0) scale(1)}to{transform:translate3d(-7vw,9vh,0) scale(1.18)}}
+  @keyframes drift3{from{transform:translate3d(0,0,0) scale(1)}to{transform:translate3d(5vw,-7vh,0) scale(1.1)}}
+  .grain{position:fixed; inset:0; z-index:-1; pointer-events:none; opacity:.05; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+  /* ---------- Nav ---------- */
+  .nav{position:sticky; top:0; z-index:50; -webkit-backdrop-filter:saturate(160%) blur(16px); backdrop-filter:saturate(160%) blur(16px);
+    background:color-mix(in srgb,var(--bg) 64%,transparent); border-bottom:1px solid transparent; transition:border-color .25s ease,background .25s ease}
+  .nav.scrolled{border-bottom-color:var(--line); background:color-mix(in srgb,var(--bg) 82%,transparent)}
+  .nav-in{display:flex; align-items:center; justify-content:space-between; max-width:var(--maxw); margin:0 auto; padding:13px 24px}
+  .brand{display:flex; align-items:center; gap:10px; font-family:var(--font-sans); font-weight:600; font-size:18px; color:var(--ink); letter-spacing:-.02em}
   .brand:hover{text-decoration:none}
-  .brand img{width:26px; height:26px; border-radius:7px}
-  .nav-links{display:flex; gap:24px; font-size:15px}
+  .brand img{width:28px; height:28px; border-radius:8px; box-shadow:0 2px 10px -2px rgba(109,91,255,.5)}
+  .nav-links{display:flex; gap:26px; font-size:15px; align-items:center}
   .nav-links a{color:var(--ink-2)}
   .nav-links a:hover{color:var(--ink); text-decoration:none}
-  @media(max-width:640px){.nav-links a:not(:last-child){display:none}}
+  .nav-gh{display:inline-flex; align-items:center; gap:7px; padding:7px 13px; border-radius:9px; border:1px solid var(--glass-brd); background:var(--glass-2); color:var(--ink)!important}
+  .nav-gh:hover{border-color:var(--accent)}
+  @media(max-width:680px){.nav-links a:not(.nav-gh){display:none}}
 
-  /* Hero */
-  .hero{display:grid; grid-template-columns:1.05fr .95fr; gap:48px; align-items:center; padding:72px 0 56px}
-  @media(max-width:860px){.hero{grid-template-columns:1fr; gap:36px; text-align:center; padding:48px 0 32px}}
-  .hero-icon{width:64px; height:64px; border-radius:16px; box-shadow:var(--shadow-sm); margin-bottom:22px}
-  @media(max-width:860px){.hero-icon{margin-inline:auto}}
-  .hero h1{font-size:clamp(38px,5.4vw,58px); font-weight:700; letter-spacing:-.022em; line-height:1.05; color:var(--ink)}
-  .hero h1 .muted{color:var(--ink-2)}
-  .hero .lead{margin-top:18px; font-size:18px}
-  @media(max-width:860px){.hero .lead{margin-inline:auto}}
-  .cta{display:flex; gap:12px; margin-top:28px; flex-wrap:wrap}
-  @media(max-width:860px){.cta{justify-content:center}}
-  .btn{display:inline-flex; align-items:center; gap:8px; padding:12px 20px; border-radius:10px; font-weight:600; font-size:15px; font-family:var(--font-body); border:1px solid transparent; transition:transform .16s ease, box-shadow .16s ease, background .16s ease}
-  .btn:hover{text-decoration:none; transform:translateY(-1px)}
-  .btn-primary{background:var(--accent); color:var(--btn-ink); box-shadow:var(--shadow-sm)}
-  .btn-primary:hover{background:var(--accent-hover); color:var(--btn-ink)}
-  .btn-ghost{background:transparent; color:var(--ink); border-color:var(--line)}
-  .btn-ghost:hover{background:var(--bg-sunken); color:var(--ink)}
-  .brewbar{display:inline-flex; align-items:center; gap:12px; margin-top:20px; padding:10px 10px 10px 16px; background:var(--bg-sunken); border:1px solid var(--line); border-radius:10px; font-family:var(--font-mono); font-size:13.5px; color:var(--ink)}
-  @media(max-width:860px){.brewbar{margin-inline:auto}}
-  .brewbar .dollar{color:var(--ink-3)}
-  .copy{cursor:pointer; border:1px solid var(--line); background:var(--bg-elevated); color:var(--ink-2); padding:6px 12px; border-radius:7px; font:inherit; font-size:12px}
-  .copy:hover{border-color:var(--accent); color:var(--accent)}
-  .meta{margin-top:16px; color:var(--ink-3); font-size:13px}
-  @media(max-width:860px){.meta{text-align:center}}
-  .shot-plate{background:var(--bg-sunken); border:1px solid var(--line); border-radius:20px; padding:22px; display:flex; justify-content:center}
-  .shot-plate img{max-width:100%; height:auto; border-radius:12px; box-shadow:var(--shadow-lg)}
+  /* ---------- Hero ---------- */
+  .hero{display:grid; grid-template-columns:1.04fr .96fr; gap:52px; align-items:center; padding:80px 0 36px}
+  @media(max-width:880px){.hero{grid-template-columns:1fr; gap:38px; text-align:center; padding:52px 0 24px}}
+  .hero-icon{width:72px; height:72px; border-radius:18px; margin-bottom:24px; box-shadow:0 16px 40px -12px rgba(139,92,246,.5),inset 0 1px 0 rgba(255,255,255,.25)}
+  @media(max-width:880px){.hero-icon{margin-inline:auto}}
+  .hero h1{font-size:clamp(40px,5.6vw,62px); font-weight:600; letter-spacing:-.03em; line-height:1.02}
+  .hero h1 .grad{background:var(--grad); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent}
+  .hero .lead{margin-top:20px; font-size:18.5px}
+  @media(max-width:880px){.hero .lead{margin-inline:auto}}
+  .cta{display:flex; gap:13px; margin-top:30px; flex-wrap:wrap}
+  @media(max-width:880px){.cta{justify-content:center}}
+  .btn{display:inline-flex; align-items:center; gap:8px; padding:13px 22px; border-radius:12px; font-weight:600; font-size:15px; font-family:var(--font-sans);
+    border:1px solid transparent; transition:transform .18s ease, box-shadow .18s ease, background .18s ease; cursor:pointer}
+  .btn:hover{text-decoration:none; transform:translateY(-2px)}
+  .btn svg{width:17px; height:17px}
+  .btn-primary{position:relative; background:var(--grad); color:#fff; box-shadow:0 10px 30px -10px rgba(139,92,246,.65)}
+  .btn-primary::before{content:""; position:absolute; inset:-1.5px; border-radius:13px; padding:1.5px; z-index:-1;
+    background:conic-gradient(from var(--angle),var(--indigo),var(--fuchsia),var(--violet),var(--indigo));
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask-composite:exclude; opacity:0; transition:opacity .2s ease}
+  .btn-primary:hover{box-shadow:0 16px 40px -10px rgba(217,70,239,.7)}
+  .btn-primary:hover::before{opacity:1; animation:spin 3.5s linear infinite}
+  @keyframes spin{to{--angle:360deg}}
+  .btn-ghost{background:var(--glass-2); color:var(--ink); border-color:var(--glass-brd); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px)}
+  .btn-ghost:hover{border-color:var(--accent); color:var(--ink)}
+  .brewbar{display:inline-flex; align-items:center; gap:12px; margin-top:22px; padding:11px 11px 11px 16px;
+    background:var(--glass); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); border:1px solid var(--glass-brd);
+    border-radius:12px; font-family:var(--font-mono); font-size:13.5px; color:var(--ink); box-shadow:var(--glass-shadow)}
+  @media(max-width:880px){.brewbar{margin-inline:auto}}
+  .brewbar .dollar{color:var(--accent)}
+  .copy{cursor:pointer; border:1px solid var(--glass-brd); background:rgba(124,122,160,.1); color:var(--ink-2); padding:6px 12px; border-radius:8px; font:inherit; font-size:12px; transition:.15s}
+  .copy:hover{border-color:var(--accent); color:#C4B5FD}
+  .meta{margin-top:18px; color:var(--ink-3); font-size:13px}
+  @media(max-width:880px){.meta{text-align:center}}
 
-  /* generic card grid */
-  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:28px}
-  @media(max-width:640px){.grid2{grid-template-columns:1fr}}
-  .tile{background:var(--bg-elevated); border:1px solid var(--line); border-radius:var(--radius); padding:20px; box-shadow:var(--shadow-sm)}
-  .tile .ic{width:22px; height:22px; color:var(--accent); margin-bottom:10px}
-  .tile h3{font-size:16px; font-weight:600; font-family:var(--font-body); margin:0 0 4px}
-  .tile p{margin:0; color:var(--ink-2); font-size:14.5px}
+  /* badge row */
+  .badges{display:flex; flex-wrap:wrap; gap:8px; margin-top:24px}
+  @media(max-width:880px){.badges{justify-content:center}}
+  .badges img{height:22px}
 
-  /* mechanism steps */
-  .steps{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:26px}
+  /* hero product shot floating over a bloom */
+  .hero-visual{position:relative}
+  .shot-plate{position:relative; border-radius:22px; padding:20px;
+    background:var(--glass); -webkit-backdrop-filter:blur(22px) saturate(150%); backdrop-filter:blur(22px) saturate(150%);
+    border:1px solid var(--glass-brd); box-shadow:var(--glass-shadow); display:flex; justify-content:center}
+  .shot-plate::after{content:""; position:absolute; inset:0; border-radius:22px; box-shadow:inset 0 1px 0 var(--glass-hi); pointer-events:none}
+  .shot-plate img{max-width:100%; height:auto; border-radius:14px; box-shadow:var(--shadow-lg)}
+  .shot-glow{position:absolute; inset:-12% -6% -18% -6%; z-index:-1; border-radius:40px; filter:blur(50px); opacity:.6;
+    background:radial-gradient(60% 60% at 50% 40%,rgba(139,92,246,.5),transparent 70%)}
+
+  /* ---------- glass card primitive ---------- */
+  .glass{background:var(--glass); -webkit-backdrop-filter:blur(20px) saturate(140%); backdrop-filter:blur(20px) saturate(140%);
+    border:1px solid var(--glass-brd); border-radius:var(--radius); box-shadow:var(--glass-shadow)}
+
+  /* ---------- Trust strip ---------- */
+  .trust{padding-top:8px}
+  .trust-card{padding:26px 26px 22px; position:relative; overflow:hidden}
+  .trust-card::before{content:""; position:absolute; left:0; top:0; right:0; height:2px; background:var(--grad); opacity:.9}
+  .trust-head{display:flex; align-items:center; gap:10px; margin-bottom:4px}
+  .trust-head h2{font-size:19px; font-weight:600; letter-spacing:-.02em}
+  .trust-head .lock{width:20px; height:20px; color:var(--accent)}
+  .trust-sub{color:var(--ink-3); font-size:14px; margin:0 0 20px}
+  .trust-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:14px}
+  @media(max-width:860px){.trust-grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:440px){.trust-grid{grid-template-columns:1fr}}
+  .ts{display:flex; gap:12px; align-items:flex-start; padding:14px; border:1px solid var(--glass-brd); border-radius:12px; background:rgba(28,25,58,.5); box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+  .ts svg{width:20px; height:20px; flex:none; margin-top:1px; color:var(--accent)}
+  .ts b{display:block; font-size:13.5px; font-weight:600; color:var(--ink); letter-spacing:-.01em}
+  .ts span{font-size:12.5px; color:var(--ink-3); line-height:1.45}
+  .verify{margin-top:18px; border:1px solid var(--line); border-radius:12px; overflow:hidden; background:var(--sunken)}
+  .verify .vh{padding:9px 15px; font-family:var(--font-mono); font-size:12px; color:var(--ink-3); border-bottom:1px solid var(--line); background:rgba(20,18,42,.6); display:flex; justify-content:space-between; align-items:center}
+  .verify pre{margin:0; padding:14px 16px; overflow-x:auto; font-family:var(--font-mono); font-size:13px; color:var(--ink); line-height:1.7}
+  .verify .tok-c{color:var(--accent)}
+
+  /* ---------- mechanism steps ---------- */
+  .steps{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:30px}
   @media(max-width:760px){.steps{grid-template-columns:1fr}}
-  .step{border:1px solid var(--line); border-radius:var(--radius); padding:20px; background:var(--bg-elevated)}
-  .step .n{font-family:var(--font-mono); color:var(--accent); font-weight:600; font-size:14px}
-  .step p{margin:8px 0 0; color:var(--ink-2); font-size:14.5px}
-  .quote{margin:24px 0 0; padding:14px 18px; border-left:3px solid var(--accent); background:var(--bg-sunken); border-radius:0 8px 8px 0; color:var(--ink); font-size:15px}
-  .quote cite{display:block; margin-top:6px; color:var(--ink-3); font-style:normal; font-family:var(--font-mono); font-size:12.5px}
+  .step{padding:22px}
+  .step .n{font-family:var(--font-mono); font-weight:500; font-size:14px; background:var(--grad); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent}
+  .step p{margin:10px 0 0; color:var(--ink-2); font-size:14.5px}
+  .quote{margin:26px 0 0; padding:18px 22px; position:relative; border-radius:14px; color:var(--ink); font-size:15.5px; line-height:1.6}
+  .quote::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px; border-radius:3px; background:var(--grad)}
+  .quote cite{display:block; margin-top:8px; color:var(--ink-3); font-style:normal; font-family:var(--font-mono); font-size:12.5px}
 
-  /* feature spec list */
-  .specs{display:grid; grid-template-columns:1fr 1fr; gap:0 44px; margin-top:28px}
-  @media(max-width:640px){.specs{grid-template-columns:1fr}}
-  .spec{display:grid; grid-template-columns:22px 1fr; gap:14px; padding:16px 0; border-bottom:1px solid var(--line)}
-  .spec svg{width:20px; height:20px; color:var(--ink-2); margin-top:2px}
-  .spec h3{font-size:16px; font-weight:600; font-family:var(--font-body); margin:0 0 2px}
+  /* ---------- feature bento ---------- */
+  .specs{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:30px}
+  @media(max-width:860px){.specs{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:560px){.specs{grid-template-columns:1fr}}
+  .spec{padding:22px; transition:transform .2s ease, border-color .2s ease}
+  .spec:hover{transform:translateY(-3px); border-color:var(--accent)}
+  .spec.wide{grid-column:span 2}
+  @media(max-width:560px){.spec.wide{grid-column:span 1}}
+  .spec .ic{width:38px; height:38px; border-radius:11px; display:grid; place-items:center; margin-bottom:14px; background:var(--grad-soft); border:1px solid var(--glass-brd)}
+  .spec .ic svg{width:20px; height:20px; color:#C4B5FD}
+  .spec h3{font-size:16.5px; font-weight:600; margin:0 0 5px; letter-spacing:-.01em}
   .spec p{margin:0; color:var(--ink-2); font-size:14.5px}
+  .glyph-note{margin-top:18px; color:var(--ink-3); font-size:13.5px; text-align:center}
+  .glyph-note b{color:var(--ink-2); font-weight:500}
 
-  /* code block */
-  .codeblock{margin-top:22px; border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; background:var(--bg-sunken)}
-  .codeblock .fname{padding:8px 14px; font-family:var(--font-mono); font-size:12px; color:var(--ink-3); border-bottom:1px solid var(--line); background:var(--bg-elevated)}
-  .codeblock pre{margin:0; padding:14px; overflow-x:auto; font-family:var(--font-mono); font-size:13px; color:var(--ink); line-height:1.5}
+  /* ---------- how it works ---------- */
+  .codeblock{margin-top:24px; border-radius:var(--radius); overflow:hidden}
+  .codeblock .fname{padding:10px 16px; font-family:var(--font-mono); font-size:12px; color:var(--ink-3); border-bottom:1px solid var(--line); background:rgba(20,18,42,.5)}
+  .codeblock pre{margin:0; padding:16px; overflow-x:auto; font-family:var(--font-mono); font-size:13px; color:var(--ink); line-height:1.6}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:18px}
+  @media(max-width:640px){.grid2{grid-template-columns:1fr}}
+  .tile{padding:20px; transition:transform .2s ease,border-color .2s ease}
+  .tile:hover{transform:translateY(-3px); border-color:var(--accent)}
+  .tile .ic{width:34px; height:34px; border-radius:10px; display:grid; place-items:center; margin-bottom:12px; background:var(--grad-soft); border:1px solid var(--glass-brd)}
+  .tile .ic svg{width:19px; height:19px; color:#C4B5FD}
+  .tile h3{font-size:15.5px; font-weight:600; font-family:var(--font-sans); margin:0 0 4px}
+  .tile p{margin:0; color:var(--ink-2); font-size:14px}
 
-  /* comparison table */
-  .table-wrap{margin-top:26px; border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; overflow-x:auto; background:var(--bg-elevated)}
-  table{border-collapse:collapse; width:100%; min-width:600px; font-size:14.5px}
-  th,td{padding:13px 16px; text-align:center; border-bottom:1px solid var(--line)}
+  /* ---------- comparison ---------- */
+  .table-wrap{margin-top:30px; border-radius:var(--radius); overflow:hidden; overflow-x:auto}
+  table{border-collapse:collapse; width:100%; min-width:620px; font-size:14.5px; font-variant-numeric:tabular-nums}
+  th,td{padding:14px 16px; text-align:center; border-bottom:1px solid var(--line)}
   th:first-child,td:first-child{text-align:left; color:var(--ink-2); font-weight:500}
-  thead th{background:var(--bg-sunken); font-weight:600; color:var(--ink)}
-  thead th.me{background:var(--accent-soft)}
-  tbody td.me{background:var(--accent-soft)}
-  .me-h{display:inline-flex; align-items:center; gap:7px}
-  .me-h img{width:18px; height:18px; border-radius:5px}
+  thead th{background:rgba(20,18,42,.5); font-weight:600; color:var(--ink-2)}
+  thead th.me{background:var(--grad-soft); color:var(--ink); position:relative}
+  thead th.me::after{content:""; position:absolute; left:0; right:0; bottom:0; height:2px; background:var(--grad)}
+  tbody td.me{background:rgba(139,92,246,.08)}
+  .me-h{display:inline-flex; align-items:center; gap:8px; font-weight:600}
+  .me-h img{width:20px; height:20px; border-radius:6px}
   tbody tr:last-child td{border-bottom:none}
   .yes{color:var(--ok); font-weight:600}.no{color:var(--no)}.warn{color:var(--warn)}
-  .fn{color:var(--ink-3); font-size:13px; margin-top:14px; max-width:880px}
+  .fn{color:var(--ink-3); font-size:13px; margin-top:16px; max-width:900px}
+  .fn a{color:var(--ink-2)}
 
-  /* FAQ */
-  details{border:1px solid var(--line); border-radius:var(--radius); margin-top:10px; background:var(--bg-elevated); overflow:hidden}
-  summary{cursor:pointer; padding:16px 18px; font-weight:600; list-style:none; color:var(--ink); display:flex; justify-content:space-between; align-items:center; gap:16px}
+  /* ---------- FAQ ---------- */
+  details{border:1px solid var(--glass-brd); border-radius:14px; margin-top:11px; background:var(--glass); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); overflow:hidden}
+  summary{cursor:pointer; padding:17px 20px; font-weight:600; list-style:none; color:var(--ink); display:flex; justify-content:space-between; align-items:center; gap:16px; font-size:15.5px}
   summary::-webkit-details-marker{display:none}
   summary::after{content:""; width:9px; height:9px; border-right:2px solid var(--accent); border-bottom:2px solid var(--accent); transform:rotate(45deg); transition:transform .2s ease; flex:none; margin-right:4px}
   details[open] summary::after{transform:rotate(225deg)}
-  details[open]{box-shadow:var(--shadow-sm)}
-  details p{padding:0 18px 18px; margin:0; color:var(--ink-2); font-size:15px}
+  details[open]{border-color:var(--accent)}
+  details p{padding:0 20px 18px; margin:0; color:var(--ink-2); font-size:15px}
 
-  /* install band */
-  .band{background:var(--bg-sunken); border-top:1px solid var(--line); border-bottom:1px solid var(--line); text-align:center}
-  .band .wrap{padding:64px 24px}
-  .band img{width:56px; height:56px; border-radius:14px; box-shadow:var(--shadow-sm)}
-  .band h2{margin:18px 0 8px}
+  /* ---------- install band ---------- */
+  .band .wrap{padding:0}
+  .band-card{text-align:center; padding:56px 28px; border-radius:24px; position:relative; overflow:hidden}
+  .band-card::before{content:""; position:absolute; inset:0; z-index:-1; opacity:.5;
+    background:radial-gradient(60% 100% at 50% 0%,rgba(139,92,246,.35),transparent 70%)}
+  .band img{width:60px; height:60px; border-radius:16px; box-shadow:0 14px 36px -10px rgba(139,92,246,.6),inset 0 1px 0 rgba(255,255,255,.25)}
+  .band h2{margin:20px 0 8px}
   .band .lead{margin:0 auto}
-  .band .row{display:flex; gap:12px; justify-content:center; align-items:center; flex-wrap:wrap; margin-top:24px}
+  .band .row{display:flex; gap:13px; justify-content:center; align-items:center; flex-wrap:wrap; margin-top:26px}
 
-  footer{padding:40px 0 64px; color:var(--ink-3); font-size:14px; text-align:center; border-top:1px solid var(--line)}
+  footer{padding:48px 0 64px; color:var(--ink-3); font-size:14px; text-align:center; border-top:1px solid var(--line); margin-top:40px}
   footer a{color:var(--ink-2)}
-  .footlinks{display:flex; gap:20px; justify-content:center; flex-wrap:wrap; margin-bottom:14px}
+  .footlinks{display:flex; gap:22px; justify-content:center; flex-wrap:wrap; margin-bottom:16px}
 
+  /* reveal (JS-gated, reduced-motion-safe) */
+  .js .reveal{opacity:0; transform:translateY(18px)}
   @media (prefers-reduced-motion:reduce){
-    *{animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important; scroll-behavior:auto!important}
+    .js .reveal{opacity:1!important; transform:none!important}
+    *{animation-duration:.001ms!important; animation-iteration-count:1!important; transition-duration:.001ms!important; scroll-behavior:auto!important}
+    .aurora span{animation:none!important}
   }
 </style>
 </head>
 <body>
+
+<div class="aurora" aria-hidden="true"><span class="b1"></span><span class="b2"></span><span class="b3"></span></div>
+<div class="grain" aria-hidden="true"></div>
 
 <nav class="nav" id="nav">
   <div class="nav-in">
     <a class="brand" href="#top"><img src="icon.png" alt="">Sleepless</a>
     <div class="nav-links">
       <a href="#why">How it works</a>
+      <a href="#trust">Security</a>
       <a href="#compare">Compare</a>
       <a href="#faq">FAQ</a>
-      <a href="https://github.com/Aboudjem/Sleepless">GitHub</a>
+      <a class="nav-gh" href="https://github.com/Aboudjem/Sleepless"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2A10 10 0 0 0 8.84 21.5c.5.08.66-.22.66-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.46-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.5 9.5 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.94.36.31.68.92.68 1.85v2.74c0 .27.16.57.67.48A10 10 0 0 0 12 2Z"/></svg>GitHub</a>
     </div>
   </div>
 </nav>
@@ -220,19 +302,27 @@
   <div class="wrap hero">
     <div class="hero-copy">
       <img class="hero-icon" src="icon.png" alt="Sleepless app icon, a coffee cup">
-      <h1>Keep your Mac awake.<br><span class="muted">Lid closed.</span></h1>
+      <h1>Keep your Mac awake.<br><span class="grad">Lid closed.</span></h1>
       <p class="lead">Sleepless keeps your MacBook awake with the lid closed, on battery, with no external display. One native menu-bar switch, with an auto-off timer and a battery-floor cutoff so you never drain it flat.</p>
       <div class="cta">
-        <a class="btn btn-primary" href="https://github.com/Aboudjem/Sleepless/releases/latest">Download for macOS</a>
+        <a class="btn btn-primary" href="https://github.com/Aboudjem/Sleepless/releases/latest"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>Download for macOS</a>
         <a class="btn btn-ghost" href="https://github.com/Aboudjem/Sleepless">View source on GitHub</a>
       </div>
       <div class="brewbar">
         <span><span class="dollar">$ </span>brew install --cask aboudjem/tap/sleepless</span>
         <button class="copy" id="copyBrew" data-cmd="brew install --cask aboudjem/tap/sleepless">Copy</button>
       </div>
+      <div class="badges">
+        <a href="https://github.com/Aboudjem/Sleepless/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/Aboudjem/Sleepless/ci.yml?branch=main&label=CI&logo=githubactions&logoColor=white&style=flat-square&color=8B5CF6&labelColor=14122A"></a>
+        <a href="https://github.com/Aboudjem/Sleepless/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/Aboudjem/Sleepless?label=release&logo=apple&logoColor=white&style=flat-square&color=8B5CF6&labelColor=14122A"></a>
+        <img alt="Build provenance: attested" src="https://img.shields.io/badge/build_provenance-attested-8B5CF6?style=flat-square&logo=githubactions&logoColor=white&labelColor=14122A">
+        <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-D946EF?style=flat-square&labelColor=14122A"></a>
+        <a href="https://github.com/Aboudjem/Sleepless/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/Aboudjem/Sleepless?style=flat-square&color=6366F1&labelColor=14122A"></a>
+      </div>
       <p class="meta">macOS 26 · Apple Silicon · MIT · no Dock icon, no daemon, no kext</p>
     </div>
     <div class="hero-visual">
+      <div class="shot-glow"></div>
       <div class="shot-plate">
         <img src="screenshot-popover.png" alt="The Sleepless menu-bar popover: a switch, an auto-off timer, a battery-floor slider, and a launch-at-login toggle">
       </div>
@@ -240,77 +330,101 @@
   </div>
 </header>
 
+<section id="trust" class="trust">
+  <div class="wrap reveal">
+    <div class="glass trust-card">
+      <div class="trust-head">
+        <svg class="lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><path d="m12 15 0 2"/></svg>
+        <h2>Trust it, then forget it</h2>
+      </div>
+      <p class="trust-sub">It holds one scoped <code>sudo</code> grant and runs your Mac unattended, so every release is built in the open and signed so you can prove what you ran.</p>
+      <div class="trust-grid">
+        <div class="ts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg><div><b>Build provenance</b><span>SLSA attestation signed via Sigstore in CI. Verify with <code>gh attestation verify</code>.</span></div></div>
+        <div class="ts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v6H4z"/><path d="M4 14h10v6H4z"/><path d="M18 14v6M21 17h-6"/></svg><div><b>SHA-256 checksums</b><span>Every release ships <code>SHA256SUMS</code>. No Apple account needed to check.</span></div></div>
+        <div class="ts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/><path d="m4 4 16 16" opacity="0"/></svg><div><b>No telemetry</b><span>No analytics, no network calls. It only flips one local <code>pmset</code> flag.</span></div></div>
+        <div class="ts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18 22 12 16 6"/><path d="M8 6 2 12 8 18"/></svg><div><b>Open source, MIT</b><span>One AppKit file. No daemon, no kernel extension. Read every line.</span></div></div>
+      </div>
+      <div class="verify">
+        <div class="vh"><span>verify a download</span><button class="copy" data-cmd="shasum -a 256 -c SHA256SUMS&#10;gh attestation verify Sleepless-1.2.0.zip -R Aboudjem/Sleepless">Copy</button></div>
+        <pre><span class="tok-c">shasum</span> -a 256 -c SHA256SUMS
+<span class="tok-c">gh</span> attestation verify Sleepless-1.2.0.zip -R Aboudjem/Sleepless</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section id="why">
-  <div class="wrap">
+  <div class="wrap reveal">
     <p class="eyebrow">The one that actually does it</p>
     <h2 class="sec">Why other keep-awake apps can't do this</h2>
     <p class="lead">Most keep-awake apps ride on macOS power assertions. Assertions stop the idle timer, but they can't override the hardware lid-close trigger, so a closed lid still sleeps the Mac. Sleepless flips the one setting that can.</p>
     <div class="steps">
-      <div class="step"><span class="n">01</span><p>Power assertions (Caffeine, Theine, <code>caffeinate</code>) stop the idle timer, but not the lid-close trigger.</p></div>
-      <div class="step"><span class="n">02</span><p>So a closed lid still sleeps the Mac, even with Amphetamine or KeepingYouAwake.</p></div>
-      <div class="step"><span class="n">03</span><p><code>pmset disablesleep</code> overrides lid-close sleep. Sleepless flips exactly that, reads it back, and adds safety nets.</p></div>
+      <div class="step glass"><span class="n">01</span><p>Power assertions (Caffeine, Theine, <code>caffeinate</code>) stop the idle timer, but not the lid-close trigger.</p></div>
+      <div class="step glass"><span class="n">02</span><p>So a closed lid still sleeps the Mac, even with Amphetamine or KeepingYouAwake.</p></div>
+      <div class="step glass"><span class="n">03</span><p><code>pmset disablesleep</code> overrides lid-close sleep. Sleepless flips exactly that, reads it back, and adds safety nets.</p></div>
     </div>
-    <blockquote class="quote">“I will probably never support this option because <code>caffeinate</code> doesn't support this. KYA uses <code>caffeinate</code> under the hood.”<cite>KeepingYouAwake maintainer, issue #66</cite></blockquote>
+    <blockquote class="quote glass">“I will probably never support this option because <code>caffeinate</code> doesn't support this. KYA uses <code>caffeinate</code> under the hood.”<cite>KeepingYouAwake maintainer, issue #66</cite></blockquote>
   </div>
 </section>
 
 <section id="features">
-  <div class="wrap">
+  <div class="wrap reveal">
     <p class="eyebrow">Small on purpose</p>
     <h2 class="sec">Everything it does, nothing it doesn't</h2>
     <div class="specs">
-      <div class="spec">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="10" rx="5"/><circle cx="16" cy="12" r="3"/></svg>
-        <div><h3>One switch</h3><p>Click the coffee cup, flip the toggle. Empty cup is off, full cup is awake, full cup with a dot is awake on battery.</p></div>
+      <div class="spec glass wide">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="10" rx="5"/><circle cx="16" cy="12" r="3"/></svg></div>
+        <h3>One switch</h3><p>Click the coffee cup, flip the toggle. Empty cup is off, full cup is awake, full cup with a dot is awake on battery. The menu-bar glyph never lies about the real state.</p>
       </div>
-      <div class="spec">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2"/><path d="M9 2h6"/></svg>
-        <div><h3>Auto-off timer</h3><p>Keep awake for 1 or 2 hours with a live countdown, then it turns itself off. In memory only.</p></div>
+      <div class="spec glass">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2"/><path d="M9 2h6"/></svg></div>
+        <h3>Auto-off timer</h3><p>Keep awake for 1 or 2 hours with a live countdown, then it turns itself off. In memory only.</p>
       </div>
-      <div class="spec">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="16" height="10" rx="2.5"/><path d="M22 11v2"/><path d="M5.5 10v4"/></svg>
-        <div><h3>Battery-floor cutoff</h3><p>Pick a floor from 5 to 50% (default 15%). On battery, it turns itself off before you run flat.</p></div>
+      <div class="spec glass">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="16" height="10" rx="2.5"/><path d="M22 11v2"/><path d="M5.5 10v4"/></svg></div>
+        <h3>Battery-floor cutoff</h3><p>Pick a floor from 5 to 50% (default 15%). On battery, it turns itself off before you run flat.</p>
       </div>
-      <div class="spec">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 4 13c0-5 5-9 16-9 0 9-4 16-9 16Z"/><path d="M4 20c4-5 7-7 11-8"/></svg>
-        <div><h3>Low Power Mode aware</h3><p>On battery, if Low Power Mode is on, Sleepless steps aside and lets the Mac sleep.</p></div>
+      <div class="spec glass">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 4 13c0-5 5-9 16-9 0 9-4 16-9 16Z"/><path d="M4 20c4-5 7-7 11-8"/></svg></div>
+        <h3>Low Power Mode aware</h3><p>On battery, if Low Power Mode is on, Sleepless steps aside and lets the Mac sleep.</p>
       </div>
-      <div class="spec">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/><path d="m4 3 16 16"/></svg>
-        <div><h3>No display, no dongle</h3><p>Just the lid closed, on battery. No external monitor, no dummy HDMI plug.</p></div>
+      <div class="spec glass">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/><path d="m4 3 16 16"/></svg></div>
+        <h3>No display, no dongle</h3><p>Just the lid closed, on battery. No external monitor, no dummy HDMI plug.</p>
       </div>
-      <div class="spec">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 4 9 15M20 4l-7 16-3-7-7-3 17-6Z"/></svg>
-        <div><h3>Tiny and native</h3><p>One AppKit file with SF Symbols. No Dock icon, no background daemon, no kext, no dependencies.</p></div>
+      <div class="spec glass">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 4 9 15M20 4l-7 16-3-7-7-3 17-6Z"/></svg></div>
+        <h3>Tiny and native</h3><p>One AppKit file with SF Symbols. No Dock icon, no background daemon, no kext, no dependencies.</p>
       </div>
     </div>
+    <p class="glyph-note"><b>Menu-bar glyph:</b> empty cup = off · full cup = awake · full cup + dot = awake on battery (auto-off live).</p>
   </div>
 </section>
 
 <section id="how">
-  <div class="wrap">
+  <div class="wrap reveal">
     <p class="eyebrow">How it works</p>
     <h2 class="sec">One setting, flipped safely</h2>
     <p class="lead">Sleepless toggles <code>pmset disablesleep</code>, which flips the kernel's <code>SleepDisabled</code> flag, then reverts it at your battery floor, in Low Power Mode, or when the timer ends. A reboot also resets it. Because a GUI app can't type a password, the installer adds a tightly scoped sudoers rule that permits exactly two commands and nothing else.</p>
-    <div class="codeblock">
+    <div class="codeblock glass">
       <div class="fname">/etc/sudoers.d/sleepless</div>
       <pre>&lt;you&gt; ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1</pre>
     </div>
     <div class="grid2">
-      <div class="tile"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg><h3>Can't be widened</h3><p>sudoers matches arguments literally with no wildcards, so any other command re-prompts for a password.</p></div>
-      <div class="tile"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><h3>No helper to hijack</h3><p>It calls Apple's /usr/bin/pmset directly with an argv array. No daemon, no shell, no helper script.</p></div>
-      <div class="tile"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg><h3>Always reversible</h3><p>A reboot resets the flag, the floor and timer turn it off, and uninstall.sh removes the grant and proves it.</p></div>
-      <div class="tile"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg><h3>Verifiable downloads</h3><p>Releases ship SHA-256 sums and a Sigstore build-provenance attestation. No Apple account needed to check.</p></div>
+      <div class="tile glass"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg></div><h3>Can't be widened</h3><p>sudoers matches arguments literally with no wildcards, so any other command re-prompts for a password.</p></div>
+      <div class="tile glass"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><h3>No helper to hijack</h3><p>It calls Apple's /usr/bin/pmset directly with an argv array. No daemon, no shell, no helper script.</p></div>
+      <div class="tile glass"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div><h3>Always reversible</h3><p>A reboot resets the flag, the floor and timer turn it off, and uninstall.sh removes the grant and proves it.</p></div>
+      <div class="tile glass"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg></div><h3>Verifiable downloads</h3><p>Releases ship SHA-256 sums and a Sigstore build-provenance attestation. No Apple account needed to check.</p></div>
     </div>
-    <p class="lead" style="margin-top:22px; font-size:16px">Full threat model and verification: <a href="https://github.com/Aboudjem/Sleepless/blob/main/SECURITY.md">SECURITY.md</a> and <a href="https://github.com/Aboudjem/Sleepless/blob/main/docs/AUDIT.md">AUDIT.md</a>.</p>
+    <p class="lead" style="margin-top:24px; font-size:16px">Full threat model and verification: <a href="https://github.com/Aboudjem/Sleepless/blob/main/SECURITY.md">SECURITY.md</a> and <a href="https://github.com/Aboudjem/Sleepless/blob/main/docs/AUDIT.md">AUDIT.md</a>.</p>
   </div>
 </section>
 
 <section id="compare">
-  <div class="wrap">
+  <div class="wrap reveal">
     <p class="eyebrow">As of 2026-06</p>
     <h2 class="sec">Sleepless vs the alternatives</h2>
-    <div class="table-wrap">
+    <div class="table-wrap glass">
       <table>
         <thead><tr><th></th><th class="me"><span class="me-h"><img src="icon.png" alt="">Sleepless</span></th><th>Amphetamine</th><th>KeepingYouAwake</th><th>caffeinate</th></tr></thead>
         <tbody>
@@ -328,7 +442,7 @@
 </section>
 
 <section id="faq">
-  <div class="wrap">
+  <div class="wrap reveal">
     <p class="eyebrow">Questions</p>
     <h2 class="sec">FAQ</h2>
     <details><summary>How do I keep my MacBook awake with the lid closed without a monitor?</summary><p>Install Sleepless, click the coffee cup in the menu bar, flip the switch on, and close the lid. It keeps the Mac awake on battery with no external display, using <code>pmset disablesleep</code>. No dummy HDMI plug or clamshell adapter is needed.</p></details>
@@ -341,13 +455,15 @@
 </section>
 
 <section class="band">
-  <div class="wrap">
-    <img src="icon.png" alt="Sleepless app icon">
-    <h2 class="sec">Keep it awake in two minutes</h2>
-    <p class="lead">Install with Homebrew, or build it from source and read every line first.</p>
-    <div class="row">
-      <div class="brewbar"><span><span class="dollar">$ </span>brew install --cask aboudjem/tap/sleepless</span><button class="copy" data-cmd="brew install --cask aboudjem/tap/sleepless">Copy</button></div>
-      <a class="btn btn-primary" href="https://github.com/Aboudjem/Sleepless/releases/latest">Download for macOS</a>
+  <div class="wrap reveal">
+    <div class="band-card glass">
+      <img src="icon.png" alt="Sleepless app icon">
+      <h2 class="sec">Keep it awake in two minutes</h2>
+      <p class="lead">Install with Homebrew, or build it from source and read every line first.</p>
+      <div class="row">
+        <div class="brewbar"><span><span class="dollar">$ </span>brew install --cask aboudjem/tap/sleepless</span><button class="copy" data-cmd="brew install --cask aboudjem/tap/sleepless">Copy</button></div>
+        <a class="btn btn-primary" href="https://github.com/Aboudjem/Sleepless/releases/latest"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>Download for macOS</a>
+      </div>
     </div>
   </div>
 </section>
@@ -375,6 +491,25 @@
     var onScroll=function(){ nav.classList.toggle('scrolled', window.scrollY>8); };
     onScroll(); window.addEventListener('scroll', onScroll, {passive:true});
   })();
+</script>
+<script type="module">
+  // Scroll reveals via Motion One (WAAPI-backed, works on Safari < 26). Pinned, no build.
+  // Content is visible by default; this only enhances. Reduced-motion = no animation.
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const els = document.querySelectorAll('.reveal');
+  // Safety fallback: if the module fails to run, reveal everything after a beat.
+  const showAll = () => els.forEach(el => { el.style.opacity='1'; el.style.transform='none'; });
+  if (reduce) { showAll(); }
+  else {
+    try {
+      const { inView, animate } = await import("https://cdn.jsdelivr.net/npm/motion@12.40.0/+esm");
+      inView(els, (el) => {
+        animate(el, { opacity:[0,1], transform:['translateY(18px)','translateY(0px)'] },
+                    { duration:0.6, easing:[0.22,0.61,0.36,1] });
+        return () => {};
+      }, { amount: 0.15 });
+    } catch (e) { showAll(); }
+  }
 </script>
 </body>
 </html>

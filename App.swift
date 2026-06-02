@@ -97,23 +97,46 @@ private func makeCupGlyph(_ glyph: SleepGlyph) -> NSImage {
 // Flipped container so popover content lays out top-down with simple frames.
 private final class FlippedView: NSView { override var isFlipped: Bool { true } }
 
+// Brand accent (2026 "Liquid Glass" redesign): indigo -> violet -> fuchsia. The
+// violet mid-tone is the single accent the popover uses to communicate the
+// privileged "awake" state, matching the app icon's gradient mid-stop. These are
+// the only hard-coded colours; everything else stays on system semantic colours so
+// the panel still reads as a first-party control.
+private let brandAccent = NSColor(srgbRed: 139/255.0, green: 92/255.0, blue: 246/255.0, alpha: 1)   // #8B5CF6 violet
+private let brandAccentSoft = NSColor(srgbRed: 167/255.0, green: 139/255.0, blue: 250/255.0, alpha: 1) // #A78BFA
+
 // Frosted-glass popover backing: a flipped NSVisualEffectView so content still
-// lays out top-down while the panel gets a translucent, blurred "glassmorphism"
-// material that samples the desktop/windows behind it (system light/dark aware).
+// lays out top-down while the panel gets a translucent, blurred material that
+// samples the desktop/windows behind it (system light/dark aware). On macOS 26 the
+// .popover material renders as the system Liquid Glass automatically; we deliberately
+// keep this native (no hand-rolled tint on the surface) so a sudo-touching panel
+// stays visually first-party. Colour lives on the controls, never the surface.
 private final class GlassView: NSVisualEffectView { override var isFlipped: Bool { true } }
 
 // Inset grouping "card" (System Settings rhythm): a flipped, layer-backed container
-// with a subtle, appearance-adaptive fill and continuous-corner rounding. It groups
-// related controls so the popover reads as a calm settings panel rather than a dense
-// form. The fill is re-resolved on light/dark changes via updateLayer.
+// with a subtle, appearance-adaptive fill, a hairline border, and continuous-corner
+// rounding. When `active`, the card carries a faint brand-violet wash + a violet
+// hairline so the privileged "kept awake" state is unmistakable at a glance in the
+// accent colour (Apple's "tint elements, not surfaces" model). Re-resolved on
+// light/dark changes and on state changes via updateLayer.
 private final class CardView: NSView {
+    var active = false { didSet { if active != oldValue { needsDisplay = true } } }
     override var isFlipped: Bool { true }
     override var wantsUpdateLayer: Bool { true }
     override func updateLayer() {
         let dark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        layer?.backgroundColor = (dark ? NSColor.white.withAlphaComponent(0.06)
-                                       : NSColor.black.withAlphaComponent(0.04)).cgColor
-        layer?.cornerRadius = 9
+        if active {
+            layer?.backgroundColor = brandAccent.withAlphaComponent(dark ? 0.18 : 0.10).cgColor
+            layer?.borderColor = brandAccent.withAlphaComponent(dark ? 0.60 : 0.45).cgColor
+            layer?.borderWidth = 1
+        } else {
+            layer?.backgroundColor = (dark ? NSColor.white.withAlphaComponent(0.06)
+                                           : NSColor.black.withAlphaComponent(0.045)).cgColor
+            layer?.borderColor = (dark ? NSColor.white.withAlphaComponent(0.08)
+                                       : NSColor.black.withAlphaComponent(0.06)).cgColor
+            layer?.borderWidth = 1
+        }
+        layer?.cornerRadius = 11
         layer?.cornerCurve = .continuous
     }
 }
@@ -129,6 +152,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // Popover UI
     private let popover = NSPopover()
     private var toggleSwitch: NSSwitch!
+    private var mainCard: CardView!         // group-1 card; gets the brand-violet wash when awake
+    private var headerMark: NSImageView!    // header coffee mark; tints violet when awake
     private var captionLabel: NSTextField!
     private var floorValueLabel: NSTextField!
     private var floorSlider: NSSlider!
@@ -182,12 +207,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         root.blendingMode = .behindWindow
         root.state = .followsWindowActiveState
 
-        // Header: small coffee mark + "Sleepless" (quiet system glyph, not a branded logo)
+        // Header: small coffee mark + "Sleepless" (quiet system glyph, not a branded logo).
+        // The mark tints to the brand violet while the Mac is kept awake.
         let mark = NSImageView(frame: NSRect(x: pad, y: 14, width: 18, height: 18))
         let headerCup = makeCupGlyph(.on); headerCup.isTemplate = true
         mark.image = headerCup
         mark.contentTintColor = .labelColor
         root.addSubview(mark)
+        headerMark = mark
         let title = makeLabel("Sleepless", font: .systemFont(ofSize: 14, weight: .semibold), color: .labelColor)
         title.frame = NSRect(x: pad + 24, y: 14, width: contentW - 24, height: 20)
         root.addSubview(title)
@@ -206,6 +233,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // GROUP 1 — main switch + state caption
         let g1y: CGFloat = 46, g1h: CGFloat = 84
         let g1 = makeCard(NSRect(x: pad, y: g1y, width: contentW, height: g1h))
+        mainCard = g1
         let rowLabel = makeLabel("Keep awake with lid closed", font: .systemFont(ofSize: 13), color: .labelColor)
         rowLabel.frame = NSRect(x: ci, y: ci, width: cw - swW - 8, height: 22)
         g1.addSubview(rowLabel)
@@ -436,6 +464,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 : "Sleepless: off. Sleeps normally."
         }
         toggleSwitch?.state = on ? .on : .off
+        // Brand-violet accent communicates the privileged "awake" state at a glance.
+        mainCard?.active = on
+        headerMark?.contentTintColor = on ? brandAccentSoft : .labelColor
         renderText()
         updateCountdownLabel()
     }
