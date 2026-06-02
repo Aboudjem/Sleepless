@@ -360,12 +360,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func switchToggled(_ sender: NSSwitch) {
         let wantOn = sender.state == .on
+        // First time turning on without the permission: set it up IN-APP via one native
+        // macOS auth (Touch ID / password), no Terminal. After that it never asks again.
+        if wantOn && !grantInstalled() {
+            guard installGrantViaAuth() else { refresh(); return }  // declined/failed -> reflect true (off) state
+        }
         setDisableSleep(wantOn)
         refresh()                              // re-read TRUE state; switch reflects reality, not the click
-        // If the user asked to turn ON but the TRUE state didn't change, the passwordless
-        // grant almost certainly isn't installed (sudo -n failed). Explain it instead of
-        // silently snapping the switch back, which reads as "the toggle is broken".
-        if wantOn && !isOn { presentGrantNeeded() }
+        if wantOn && !isOn { notify("Couldn't keep awake. The permission isn't set up yet.") }
         if isOn, autoOffMinutes > 0 { startKeepAwakeTimer(minutes: autoOffMinutes) }
     }
 
@@ -374,30 +376,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         runCapture("/usr/bin/sudo", ["-n", "-l", "/usr/bin/pmset"]).contains("disablesleep")
     }
 
-    // Actionable guidance when the toggle can't engage because the grant is missing.
-    private func presentGrantNeeded() {
-        let grantPath = (Bundle.main.resourcePath.map { $0 + "/grant.sh" }) ?? "grant.sh"
-        let alert = NSAlert()
-        alert.alertStyle = .informational
-        alert.messageText = "Sleepless needs a one-time permission"
-        alert.informativeText = """
-        To keep your Mac awake with the lid closed, Sleepless flips a protected macOS setting (pmset disablesleep). That needs a one-time passwordless grant, which isn't installed yet, so the switch can't turn on.
-
-        Run this once in Terminal, then flip the switch again:
-
-        \(grantPath)
-        """
-        alert.addButton(withTitle: "Copy command")
-        alert.addButton(withTitle: "Open Terminal")
-        alert.addButton(withTitle: "Later")
+    // Install the one-time scoped grant via a SINGLE native macOS authorization (the
+    // standard Touch ID / password sheet) — no Terminal. Runs the bundled, audited
+    // grant.sh as root through osascript's "with administrator privileges"; grant.sh is
+    // root-aware so it writes the sudoers drop-in directly with no inner sudo prompt.
+    // Returns true once the passwordless grant is in place; after that the app never asks again.
+    @discardableResult
+    private func installGrantViaAuth() -> Bool {
+        let intro = NSAlert()
+        intro.alertStyle = .informational
+        intro.messageText = "Enable keeping your Mac awake"
+        intro.informativeText = "Sleepless flips a protected macOS setting (pmset disablesleep), so it needs your permission once. macOS will ask you to authenticate (Touch ID or your password). After that the switch works instantly, with no more prompts."
+        intro.addButton(withTitle: "Enable")
+        intro.addButton(withTitle: "Not now")
         NSApp.activate(ignoringOtherApps: true)
-        switch alert.runModal() {
-        case .alertFirstButtonReturn:
-            let pb = NSPasteboard.general; pb.clearContents(); pb.setString("\"\(grantPath)\"", forType: .string)
-        case .alertSecondButtonReturn:
-            NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app"))
-        default: break
+        guard intro.runModal() == .alertFirstButtonReturn else { return false }
+
+        guard let res = Bundle.main.resourcePath else { return false }
+        let grant = res + "/grant.sh"
+        let shellCmd = "/bin/bash '\(grant)' --yes"
+        // escape for an AppleScript string literal, then run with one native auth sheet
+        let escaped = shellCmd.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+        let osa = "do shell script \"\(escaped)\" with administrator privileges"
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        proc.arguments = ["-e", osa]
+        proc.standardOutput = Pipe(); proc.standardError = Pipe()
+        do { try proc.run(); proc.waitUntilExit() }
+        catch { notify("Couldn't start the one-time setup."); return false }
+        if grantInstalled() { return true }
+        // -128 = the user cancelled the auth sheet; stay quiet then. Otherwise it genuinely failed.
+        if proc.terminationStatus != 0 && proc.terminationStatus != 128 {
+            notify("Setup didn't complete. Try again, or run grant.sh from the app bundle.")
         }
+        return false
     }
 
     // A brief, subtle pulse on the menu-bar glyph whenever the state (and thus the cup

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-06-02
+
+### Changed
+- Setting up the one-time permission no longer means running anything in Terminal.
+  The first time you flip the switch on, Sleepless installs the scoped grant itself
+  through a single native macOS authentication sheet (Touch ID or your password).
+  After that the toggle works instantly and never asks again. (Changing a protected
+  macOS setting requires one authorization; that is a system rule, but it is now one
+  in-app tap instead of a command.)
+
 ## [1.2.1] - 2026-06-02
 
 ### Fixed
@@ -84,7 +94,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README in 6 languages (English, 简体中文, Español, 日本語, Français, Deutsch).
 - MIT license, security model (`SECURITY.md`), and community-health files.
 
-[Unreleased]: https://github.com/Aboudjem/Sleepless/compare/v1.2.1...HEAD
+[Unreleased]: https://github.com/Aboudjem/Sleepless/compare/v1.2.2...HEAD
+[1.2.2]: https://github.com/Aboudjem/Sleepless/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/Aboudjem/Sleepless/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/Aboudjem/Sleepless/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Aboudjem/Sleepless/compare/v1.0.0...v1.1.0

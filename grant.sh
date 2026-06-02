@@ -9,7 +9,12 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SUDOERS_DST="/etc/sudoers.d/sleepless-disablesleep"
-USER_NAME="$(id -un)"
+USER_NAME="${SUDO_USER:-$(id -un)}"   # honor the real user when run via sudo/osascript-as-root
+
+# Run privileged steps with sudo normally, but directly when we are ALREADY root (e.g. the
+# app installs this via one native macOS auth sheet, so there is no Terminal + no sudo prompt).
+SUDO="sudo"
+[ "$(id -u)" -eq 0 ] && SUDO=""
 
 # Source of truth for the grant line: the repo template if present, else the identical
 # inline string (when this script ships inside the .app bundle, no template is alongside).
@@ -32,11 +37,11 @@ fi
 
 TMP="$(mktemp)"
 printf '%s\n' "$GRANT" > "$TMP"
-if ! sudo visudo -cf "$TMP" >/dev/null; then
+if ! $SUDO visudo -cf "$TMP" >/dev/null; then
   echo "error: generated sudoers failed validation; not installing." >&2
   rm -f "$TMP"; exit 1
 fi
-sudo install -m 0440 -o root -g wheel "$TMP" "$SUDOERS_DST"
+$SUDO install -m 0440 -o root -g wheel "$TMP" "$SUDOERS_DST"
 rm -f "$TMP"
-sudo visudo -c >/dev/null && echo "✅ grant installed and sudoers parses cleanly ($SUDOERS_DST)."
+$SUDO visudo -c >/dev/null && echo "✅ grant installed and sudoers parses cleanly ($SUDOERS_DST)."
 echo "   Toggle Sleepless from the menu bar; it will no longer need a password."

@@ -8,8 +8,8 @@
     <key>CFBundleDisplayName</key>         <string>Sleepless</string>
     <key>CFBundlePackageType</key>         <string>APPL</string>
     <key>CFBundleIconFile</key>            <string>Sleepless</string>
-    <key>CFBundleShortVersionString</key>  <string>1.2.1</string>
-    <key>CFBundleVersion</key>             <string>1.2.1</string>
+    <key>CFBundleShortVersionString</key>  <string>1.2.2</string>
+    <key>CFBundleVersion</key>             <string>1.2.2</string>
     <key>LSMinimumSystemVersion</key>      <string>26.0</string>
     <key>LSUIElement</key>                 <true/>
     <key>NSHumanReadableCopyright</key>    <string>Copyright © 2026 Adam Boudjemaa. MIT License.</string>
