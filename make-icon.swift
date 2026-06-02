@@ -14,9 +14,10 @@
 // (No hardcoded paths, so it works from any clone — build.sh passes a temp dir.)
 import AppKit
 
-// ---- Brand palette (violet glass; matches the app's tinted popover wash)
-let violetTop = NSColor(srgbRed: 150/255.0, green: 104/255.0, blue: 246/255.0, alpha: 1)
-let violetBot = NSColor(srgbRed: 109/255.0, green:  64/255.0, blue: 214/255.0, alpha: 1)
+// ---- Brand palette (warm espresso squircle; calm, native, and distinctive in a
+// Dock full of blue/purple gradient icons). White cup reads cleanly on top.
+let plateTop = NSColor(srgbRed: 194/255.0, green: 112/255.0, blue: 58/255.0, alpha: 1)  // #C2703A
+let plateBot = NSColor(srgbRed: 138/255.0, green:  75/255.0, blue: 34/255.0, alpha: 1)  // #8A4B22
 
 let outDir = CommandLine.arguments.count > 1
     ? CommandLine.arguments[1]
@@ -58,7 +59,7 @@ func renderIcon(_ S: CGFloat) -> NSBitmapImageRep {
     cg.saveGState()
     cg.addPath(path); cg.clip()
     let cs = CGColorSpaceCreateDeviceRGB()
-    let grad = CGGradient(colorsSpace: cs, colors: [violetTop.cgColor, violetBot.cgColor] as CFArray,
+    let grad = CGGradient(colorsSpace: cs, colors: [plateTop.cgColor, plateBot.cgColor] as CFArray,
                           locations: [0, 1])!
     cg.drawLinearGradient(grad, start: CGPoint(x: 0, y: S), end: CGPoint(x: 0, y: 0), options: [])
 
@@ -82,7 +83,7 @@ func renderIcon(_ S: CGFloat) -> NSBitmapImageRep {
         // soft drop shadow for depth
         cg.saveGState()
         cg.setShadow(offset: CGSize(width: 0, height: -S*0.006), blur: S*0.012,
-                     color: NSColor(srgbRed: 0.16, green: 0.07, blue: 0.35, alpha: 0.55).cgColor)
+                     color: NSColor(srgbRed: 0.20, green: 0.09, blue: 0.03, alpha: 0.55).cgColor)
         let tinted = NSImage(size: sz)
         tinted.lockFocus(); NSColor.white.set()
         sym.draw(in: NSRect(origin: .zero, size: sz))
