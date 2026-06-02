@@ -8,19 +8,19 @@
   <a href="README.de.md">Deutsch</a>
 </p>
 
-> Cette traduction est générée par la communauté ou par une machine et peut être en retard sur le README anglais. La version anglaise fait foi. Voir le [README anglais](README.md).
+> Cette traduction est générée par la communauté ou par une machine et peut être en retard sur le README en anglais. La version anglaise fait foi. [English README](README.md).
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/hero-dark.gif">
     <source media="(prefers-color-scheme: light)" srcset="assets/hero-light.gif">
-    <img alt="Sleepless: keep your Mac awake with the lid closed" src="assets/hero-light.gif" width="760">
+    <img alt="Sleepless: keep your Mac awake with the lid closed" src="assets/hero-light.gif" width="780">
   </picture>
 </p>
 
 <p align="center">
-  <b>Gardez votre MacBook éveillé capot fermé, sur batterie, sans écran externe.</b><br>
-  Un seul interrupteur natif dans la barre des menus. Un arrêt automatique au seuil de batterie pour ne jamais malmener la batterie.
+  <b>Sleepless garde votre MacBook éveillé capot fermé, sur batterie, sans écran externe.</b><br>
+  <sub>Un seul interrupteur natif dans la barre des menus, avec une extinction automatique au niveau de batterie de votre choix pour ne jamais la vider complètement.</sub>
 </p>
 
 <p align="center">
@@ -33,123 +33,121 @@
 </p>
 
 <p align="center">
-  <img alt="Sleepless demo: toggle the switch, drag the battery-floor slider" src="assets/demo.gif" width="760">
+  <img alt="Sleepless demo: flip the switch, drag the battery-floor slider" src="assets/demo.gif" width="760">
 </p>
 
----
+> [!NOTE]
+> Fermer le capot met normalement votre Mac en veille, et les applications basées sur `caffeinate` (KeepingYouAwake et consorts) **ne peuvent pas** changer cela. Sleepless bascule le seul réglage qui le permet, `pmset disablesleep`, puis le protège avec une extinction automatique au plancher de batterie, de sorte que vous pouvez l'oublier en toute sécurité.
 
-## Ce que ça fait
+## Ce que vous obtenez
 
-Fermez le capot de votre MacBook et il se met en veille. C'est généralement ce que vous voulez, mais pas quand une compilation nocturne, un long téléchargement, l'exécution d'un agent ou un partage de connexion personnel doivent continuer pendant que le portable est dans votre sac.
-
-**Sleepless** est une petite application de barre des menus qui bascule le seul réglage système qui maintient réellement un Mac éveillé capot fermé, `pmset disablesleep`, puis le surveille avec un **arrêt automatique au seuil de batterie** pour qu'un état « activé » oublié ne puisse pas vider la batterie ni emprisonner la chaleur.
-
-- 🌙 **Un seul interrupteur natif.** Cliquez sur la lune dans la barre des menus, basculez l'interrupteur. Le glyphe montre l'état d'un coup d'œil : `moon` creux (désactivé), `moon.fill` plein (activé), `moon.stars.fill` (armé : éveillé sur batterie, arrêt automatique actif).
-- 🔋 **Arrêt automatique au seuil de batterie.** Faites glisser un curseur (5 à 50 %, valeur par défaut 15 %). Pendant qu'il est éveillé et en décharge, Sleepless se désactive de lui-même quand vous atteignez ce seuil.
-- 🖥️ **Pas d'écran externe, pas d'adaptateur secteur, pas de dongle factice.** Juste le capot fermé, sur batterie.
-- 🪶 **Natif et minuscule.** AppKit + SF Symbols, pas d'icône dans le Dock, aucune dépendance tierce, aucun démon en arrière-plan, aucun kext. Toute l'application tient dans un seul `App.swift`.
-- 🔍 **Honnête sur son état.** Elle relit la valeur système en direct après chaque bascule, de sorte que l'interrupteur reflète la réalité, jamais une supposition optimiste.
+|  |  |
+|---|---|
+| 🌙 **Un seul interrupteur** | Cliquez sur la lune dans la barre des menus, activez la bascule. Le glyphe indique l'état d'un coup d'œil. |
+| 🔋 **Extinction automatique au plancher de batterie** | Choisissez un plancher (5 à 50 %, par défaut 15 %). Sur batterie, l'application se désactive d'elle-même avant que vous ne soyez à plat. |
+| 🖥️ **Pas d'écran, pas de dongle** | Juste le capot fermé, sur batterie. Pas de moniteur externe, pas de fiche HDMI factice. |
+| 🪶 **Minuscule et native** | AppKit + SF Symbols. Pas d'icône dans le Dock, pas de démon en arrière-plan, pas de kext, pas de dépendances. |
 
 ## Installation
 
-### Homebrew (recommandé)
+**Homebrew** (recommandé) :
 
 ```sh
 brew install --cask aboudjem/tap/sleepless
-```
-
-Cela ajoute le tap `Aboudjem/homebrew-tap` et installe `Sleepless.app`. Lancez ensuite l'autorisation unique (incluse dans l'application) pour qu'elle puisse basculer la veille sans demande de mot de passe. Elle affiche exactement ce qu'elle écrit avant de demander :
-
-```sh
+# one-time: add the passwordless grant (it prints exactly what it writes first)
 /Applications/Sleepless.app/Contents/Resources/grant.sh
 ```
 
-### Télécharger la version publiée
-
-Récupérez `Sleepless-1.0.0.zip` depuis les [**Releases**](https://github.com/Aboudjem/Sleepless/releases/latest), décompressez, et déplacez `Sleepless.app` vers `/Applications`. Comme elle est signée de manière ad hoc (non notarisée), Gatekeeper de macOS bloquera le premier lancement : ouvrez **Réglages Système → Confidentialité et sécurité → Ouvrir quand même**. (Sur macOS 15+, l'ancienne astuce du clic droit → Ouvrir ne fonctionne plus.)
-
-### Compiler depuis les sources (sans invite Gatekeeper)
-
-Le modèle de confiance est « lisez le code, compilez-le vous-même ». Les applications compilées localement ne sont pas mises en quarantaine, elles s'exécutent donc simplement.
+**Compiler depuis les sources** (la voie de la confiance : lisez-le, compilez-le, sans invite Gatekeeper) :
 
 ```sh
 git clone https://github.com/Aboudjem/Sleepless.git
-cd Sleepless
-./install.sh        # builds, installs to /Applications, adds the grant + login item
+cd Sleepless && ./install.sh
 ```
 
-`./build.sh` seul produit simplement `build/Sleepless.app` (Command Line Tools uniquement, pas besoin de Xcode). `./uninstall.sh` supprime tout et prouve que l'autorisation a disparu.
+**Ou téléchargez l'application :** récupérez la [dernière version](https://github.com/Aboudjem/Sleepless/releases/latest), décompressez-la et déplacez `Sleepless.app` vers `/Applications`. Elle est signée de façon ad-hoc, alors approuvez le premier lancement dans **Réglages Système → Confidentialité et sécurité → Ouvrir quand même** (l'ancienne astuce du clic droit → Ouvrir a été supprimée dans macOS 15).
 
-## Pourquoi Sleepless existe
+Cliquez ensuite sur la lune, activez l'interrupteur et fermez le capot. `./uninstall.sh` supprime tout et prouve que l'autorisation a disparu.
 
-Le `caffeinate` d'Apple (et toute application de barre des menus bâtie dessus, comme KeepingYouAwake) **ne peut pas** maintenir un Mac éveillé capot fermé. Les assertions d'alimentation IOKit qu'il utilise ne passent pas outre le déclencheur matériel de veille en clamshell, donc fermer le capot met le Mac en veille quoi qu'il arrive. Le seul levier système qui passe outre la veille en clamshell est `pmset disablesleep`.
+## Comment ça marche
 
-Quelques outils recourent bien à `disablesleep`, mais chacun laisse une faille : Amphetamine le fait (et bien plus) mais son chemin écran fermé est notoirement capricieux sur Apple Silicon ; Macchiato emploie le mécanisme exact mais n'embarque **aucun** garde-fou de batterie ; Clapet ne se déclenche que lorsqu'un **écran externe** est connecté. Sleepless est l'outil open source dédié au cas simple : **capot fermé, sur batterie, sans écran, avec un arrêt automatique pour qu'on puisse l'oublier en toute sécurité.**
+`caffeinate` et les assertions d'alimentation qu'il utilise ne peuvent pas passer outre le déclencheur matériel de fermeture du capot, donc un capot fermé met toujours le Mac en veille. Le seul réglage système qui le contourne est `pmset disablesleep`. Sleepless le bascule depuis un interrupteur natif, relit la valeur en direct pour que l'interface ne mente jamais, et revient automatiquement à votre plancher de batterie. Un redémarrage le réinitialise également. [Modèle de sécurité complet →](SECURITY.md)
 
-## Comparaison
+## Sleepless face aux alternatives
 
 | | **Sleepless** | Amphetamine | KeepingYouAwake | Macchiato | Clapet | `caffeinate` |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|
-| Éveillé, capot fermé, sur batterie | ✅ | ✅¹ | ❌ (refusé) | ✅ | ⚠️ nécessite un écran ext. | ❌ |
-| Pas besoin d'écran externe | ✅ | ✅ | n/a | ✅ | ❌ | n/a |
-| Arrêt automatique au seuil de batterie | ✅ | fin de session sur batterie faible | ✅ (mais pas capot fermé) | ❌ | ❌ | ❌ |
-| Mécanisme | `pmset disablesleep` + sudoers restreint | API publique ≈ `disablesleep` + IOKit | `caffeinate` | `pmset disablesleep` + assistant | `pmset` + sudoers | assertion IOKit |
-| Open source | ✅ MIT | ❌ (App Store) | ✅ MIT | ✅ Apache-2.0 | ✅ GPL-3.0 | intégré à Apple |
-| Étoiles | nouveau | App Store | ~6,6k | ~18 | ~101 | s.o. |
+| Éveillé, capot fermé, sur batterie | ✅ | ✅¹ | ❌ | ✅ | ⚠️ écran ext. | ❌ |
+| Aucun écran externe requis | ✅ | ✅ | n/a | ✅ | ❌ | n/a |
+| Extinction automatique au plancher de batterie | ✅ | batterie faible uniquement | ✅² | ❌ | ❌ | ❌ |
+| Open source | ✅ MIT | ❌ App Store | ✅ MIT | ✅ Apache | ✅ GPL | Apple |
 
-<sub>¹ Amphetamine le prend en charge mais, sur Apple Silicon, repose sur un script « Power Protect » installé séparément et est largement signalé comme défaillant lors du branchement/débranchement de l'alimentation et avec les configurations KVM/dock. Les décomptes d'étoiles ont été relevés le 2026-06-01 et évoluent avec le temps. Chaque affirmation sur un concurrent est sourcée dans les notes de recherche ; les corrections sont bienvenues.</sub>
+<sub>¹ Amphetamine le fait, mais sur Apple Silicon il s'appuie sur un script « Power Protect » distinct et est largement signalé comme défaillant lors de changements d'alimentation ou de dock. &nbsp; ² KeepingYouAwake dispose d'un seuil de coupure de batterie mais, par conception, ne peut pas rester éveillé capot fermé. Nombres d'étoiles (≈6,6k / ≈18 / ≈101) relevés le 2026-06-01 ; corrections bienvenues.</sub>
 
-## Cas d'usage
+## À utiliser pour…
 
-Chacun se combine avec le seuil de batterie : fixez un seuil qui vous convient et partez.
+- 🤖 **Terminer une longue tâche après votre départ.** Une exécution d'agent IA, une compilation, un rendu, un entraînement ML, une grosse installation `brew`/`npm` : activez-le, fermez le capot, glissez-le dans votre sac, et revenez à une tâche terminée.
+- 📡 **Partager votre connexion en déplacement.** Le partage Internet / Point d'accès personnel depuis le Mac continue de servir capot fermé.
+- ⬇️ **Laisser tourner de gros transferts.** De grands téléchargements, des envois ou une sauvegarde Time Machine se terminent pendant votre absence.
+- 🖥️ **Garder un serveur ou une session SSH active.** Un serveur de dev local, un démon de synchronisation ou une session distante reste joignable, capot fermé.
+- 🎧 **Continuer la lecture audio.** De la musique ou un long rendu continue de tourner dans le sac.
 
-- **Laissez une longue tâche se terminer après votre départ.** Une exécution d'agent/Claude, un rendu, une compilation, un entraînement ML, une grosse installation `brew`/`npm` : activez Sleepless, fermez le capot, glissez-le dans votre sac, ça continue de tourner.
-- **Déplacez-vous en partageant votre connexion.** Le Partage de connexion / Partage Internet depuis le Mac reste actif capot fermé.
-- **Transferts sans surveillance.** De gros téléchargements, des envois, ou une sauvegarde Time Machine qui doit se terminer pendant que vous vous absentez.
-- **Gardez un serveur ou une session SSH accessible.** Un serveur de développement local, une session SSH ou un démon de synchronisation reste en vie capot fermé.
-- **Gardez l'audio en marche.** De la musique, une longue diffusion ou un rendu audio continue de jouer dans le sac.
+> [!TIP]
+> Réglez le plancher de batterie à un niveau de confiance (disons 20 %) et vous pouvez faire tout ce qui précède sans surveiller la batterie.
 
-## Modèle de sécurité
+## Est-ce sûr ?
 
-Sleepless demande une fine tranche de droits root, voici donc exactement de quoi il s'agit. Le modèle de menace complet se trouve dans [SECURITY.md](SECURITY.md).
-
-Une application graphique n'a pas de terminal où taper un mot de passe, donc `install.sh` écrit un fichier additionnel `/etc/sudoers.d` étroitement délimité (propriété `root:wheel`, mode `0440`), avec votre nom d'utilisateur substitué :
+Oui, et c'est conçu pour être vérifiable. Une application graphique ne peut pas saisir de mot de passe, donc l'installateur ajoute une règle `/etc/sudoers.d` au périmètre strict (propriété de root, `0440`) qui autorise **exactement deux commandes et rien d'autre** :
 
 ```
 <you> ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1
 ```
 
-- **Il autorise exactement deux commandes et rien d'autre.** sudoers compare les arguments littéralement et cette règle n'a aucun caractère générique, donc `sudo pmset -a sleep 0`, `pmset restoredefaults` ou tout autre vecteur passe au travers et exige un mot de passe. L'autorisation ne peut pas être élargie.
-- **Aucun shell, aucun script d'assistance.** L'application appelle `sudo` avec un tableau argv (pas de `/bin/sh -c`), et la règle pointe directement vers le `/usr/bin/pmset` d'Apple. Il n'y a aucun script modifiable par l'utilisateur qu'un attaquant pourrait réécrire.
-- **`disablesleep` n'est pas documenté mais bien réel.** Il n'est pas dans `man pmset`, mais il positionne le drapeau `SleepDisabled` du noyau (`pmset -g | grep SleepDisabled`). Comme il n'est pas documenté, Apple pourrait le changer ; Sleepless relit la valeur après chaque bascule.
-- **Un redémarrage le remet à `0`.** C'est un drapeau d'exécution, il n'y a donc aucun moyen de rendre votre Mac définitivement incapable de se mettre en veille. Le seuil de batterie est un second filet de sécurité.
-- **Risque résiduel assumé :** l'autorisation est sans mot de passe par conception, donc tout processus s'exécutant sous votre identité pourrait basculer le drapeau. Le pire cas est « votre Mac est resté éveillé, ou a été autorisé à dormir », pas une perte de données ni une exécution de code root.
-- **Désinstallation propre.** `./uninstall.sh` supprime l'application, l'élément d'ouverture et l'autorisation, puis prouve la révocation en montrant que `sudo -n pmset …` redemande un mot de passe.
+- **Elle ne peut pas être élargie.** `sudoers` compare les arguments littéralement sans jokers, donc toute autre commande redemande un mot de passe.
+- **Aucun démon, aucun script auxiliaire** qu'un attaquant pourrait détourner. Elle appelle directement le `/usr/bin/pmset` d'Apple avec un tableau argv (sans shell).
+- **Toujours réversible.** Un redémarrage réinitialise le drapeau, le plancher de batterie le désactive, et `./uninstall.sh` supprime l'autorisation et le prouve.
+
+Le modèle de menace complet, les preuves bien réelles (mais non documentées) de `disablesleep`, et le compromis sur la notarisation se trouvent dans **[SECURITY.md](SECURITY.md)**.
 
 ## FAQ
 
-**Est-ce que ça maintient vraiment le Mac éveillé capot fermé, sur batterie, sans écran ?**
+<details>
+<summary><b>Fonctionne-t-il vraiment capot fermé, sur batterie, sans écran ?</b></summary>
+
 Oui, c'est tout l'intérêt. Vérifié sur macOS 26 (Tahoe) / Apple Silicon.
+</details>
 
-**La lune n'apparaît pas dans ma barre des menus.** macOS 26 peut masquer les éléments de la barre des menus. Vérifiez les Réglages Système (réglages du Centre de contrôle / de la barre des menus) et assurez-vous que Sleepless est autorisé à afficher son élément ; l'application tourne si `pgrep -x Sleepless` affiche un nombre.
+<details>
+<summary><b>La lune n'apparaît pas dans ma barre des menus.</b></summary>
 
-**Pourquoi n'est-il pas notarisé ?** C'est un outil personnel et open source sans Apple Developer ID payant, il est donc signé de manière ad hoc. Compilez depuis les sources pour contourner entièrement Gatekeeper, ou utilisez le flux **Ouvrir quand même** pour l'application précompilée. La notarisation n'est de toute façon pas une garantie contre les logiciels malveillants.
+macOS 26 peut masquer les éléments de la barre des menus. Vérifiez les Réglages Système (Centre de contrôle / Barre des menus) et autorisez Sleepless à afficher son élément. Confirmez qu'il tourne avec <code>pgrep -x Sleepless</code>.
+</details>
 
-**Va-t-il vider ma batterie ?** Seulement si vous ignorez le seuil. Pendant qu'il est éveillé et en décharge, Sleepless se désactive au pourcentage de batterie que vous avez fixé (valeur par défaut 15 %), et un redémarrage rétablit toujours la veille normale.
+<details>
+<summary><b>Pourquoi n'est-il pas notarisé ?</b></summary>
 
-**Fonctionne-t-il sur les Mac Intel ou les versions plus anciennes de macOS ?** Il est vérifié sur **macOS 26 Apple Silicon**. `disablesleep` n'est pas documenté, donc le comportement sur d'autres versions/matériels n'est pas garanti. Essayez et faites-nous savoir ; les retours honnêtes sont bienvenus.
+C'est un outil personnel et open source sans identifiant Apple Developer payant, il est donc signé de façon ad-hoc. Compilez depuis les sources pour contourner entièrement Gatekeeper, ou utilisez le flux <b>Ouvrir quand même</b> pour l'application préfabriquée.
+</details>
 
-**Comment le supprimer complètement ?** `./uninstall.sh` (ou supprimez `/Applications/Sleepless.app`, retirez `/etc/sudoers.d/sleepless-disablesleep` avec `sudo rm`, et faites un `launchctl bootout` sur l'élément d'ouverture).
+<details>
+<summary><b>Va-t-il vider ma batterie ?</b></summary>
+
+Seulement si vous ignorez le plancher. Pendant qu'il est éveillé et en décharge, il se désactive au pourcentage que vous avez défini (par défaut 15 %), et un redémarrage rétablit toujours la veille normale.
+</details>
+
+<details>
+<summary><b>Fonctionne-t-il sur Intel ou sur d'anciennes versions de macOS ?</b></summary>
+
+Il est vérifié sur <b>macOS 26 Apple Silicon</b>. <code>disablesleep</code> n'est pas documenté, donc les autres versions ou matériels ne sont pas garantis. Essayez-le et faites un retour, les rapports honnêtes sont les bienvenus.
+</details>
 
 ## Contribuer
 
-Les issues et PR sont bienvenues, en particulier les traductions et les rapports de test honnêtes depuis d'autres matériels/versions de macOS. Voir [CONTRIBUTING.md](CONTRIBUTING.md) et le [Code de conduite](CODE_OF_CONDUCT.md). Sleepless reste délibérément petit : les fonctionnalités qui agrandissent la surface de privilèges ont peu de chances d'être intégrées.
+Les tickets et les PR sont les bienvenus, en particulier les traductions et les rapports de test depuis d'autres matériels. Consultez [CONTRIBUTING.md](CONTRIBUTING.md) et le [Code de conduite](CODE_OF_CONDUCT.md). Sleepless reste délibérément petit.
 
 ## Licence
 
 [MIT](LICENSE) © 2026 Adam Boudjemaa.
-
----
 
 <p align="center">
   <sub>Si Sleepless vous a évité un détour par le Terminal, une ⭐ aide d'autres personnes à le trouver.</sub>

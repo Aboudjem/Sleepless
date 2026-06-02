@@ -8,19 +8,19 @@
   <b>Deutsch</b>
 </p>
 
-> Diese Übersetzung wurde von der Community bzw. maschinell erstellt und kann hinter der englischen README zurückliegen. Maßgeblich ist die englische Fassung. Siehe [English README](README.md).
+> Diese Übersetzung wurde von der Community bzw. maschinell erstellt und kann gegenüber dem englischen README veraltet sein. Maßgeblich ist die englische Version. Siehe [English README](README.md).
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/hero-dark.gif">
     <source media="(prefers-color-scheme: light)" srcset="assets/hero-light.gif">
-    <img alt="Sleepless: keep your Mac awake with the lid closed" src="assets/hero-light.gif" width="760">
+    <img alt="Sleepless: keep your Mac awake with the lid closed" src="assets/hero-light.gif" width="780">
   </picture>
 </p>
 
 <p align="center">
-  <b>Halte dein MacBook bei geschlossenem Deckel, im Akkubetrieb und ohne externes Display wach.</b><br>
-  Ein nativer Menüleisten-Schalter. Eine Akku-Schwellen-Abschaltung, damit du den Akku nie überstrapazierst.
+  <b>Sleepless hält dein MacBook bei geschlossenem Deckel wach, im Akkubetrieb, ohne externen Bildschirm.</b><br>
+  <sub>Ein nativer Schalter in der Menüleiste, mit automatischer Abschaltung bei einem von dir gewählten Akkustand, damit du ihn nie ganz leerziehst.</sub>
 </p>
 
 <p align="center">
@@ -33,123 +33,121 @@
 </p>
 
 <p align="center">
-  <img alt="Sleepless demo: toggle the switch, drag the battery-floor slider" src="assets/demo.gif" width="760">
+  <img alt="Sleepless demo: flip the switch, drag the battery-floor slider" src="assets/demo.gif" width="760">
 </p>
 
----
+> [!NOTE]
+> Wenn du den Deckel schließt, geht dein Mac normalerweise in den Ruhezustand, und Apps auf `caffeinate`-Basis (KeepingYouAwake und Co.) **können** das nicht ändern. Sleepless legt die eine Einstellung um, die es kann, `pmset disablesleep`, und sichert sie dann mit einer automatischen Abschaltung bei einem Akku-Mindeststand ab, sodass du sie bedenkenlos vergessen kannst.
 
-## Was es macht
+## Was du bekommst
 
-Schließt du den Deckel deines MacBooks, geht es in den Ruhezustand. Das ist meistens genau das, was du willst, aber nicht, wenn ein nächtlicher Build, ein langer Download, ein Agent-Lauf oder ein persönlicher Hotspot weiterlaufen soll, während das Laptop in deiner Tasche steckt.
-
-**Sleepless** ist eine winzige Menüleisten-App, die genau die eine Systemeinstellung umlegt, die einen Mac bei geschlossenem Deckel tatsächlich wach hält, `pmset disablesleep`, und sie dann mit einer automatischen **Akku-Schwellen-Abschaltung** absichert, damit ein vergessener "Ein"-Zustand weder den Akku leersaugt noch Hitze staut.
-
-- 🌙 **Ein nativer Schalter.** Klick auf den Mond in der Menüleiste, leg den Schalter um. Die Glyphe zeigt den Zustand auf einen Blick: hohler `moon` (aus), gefüllter `moon.fill` (ein), `moon.stars.fill` (scharfgeschaltet: wach im Akkubetrieb, Abschaltung aktiv).
-- 🔋 **Akku-Schwellen-Abschaltung.** Zieh an einem Regler (5–50 %, Standard 15 %). Während die App wach ist und der Akku sich entlädt, schaltet sich Sleepless selbst aus, sobald du diese Schwelle erreichst.
-- 🖥️ **Kein externes Display, kein Netzteil, kein Dummy-Dongle.** Nur der geschlossene Deckel, im Akkubetrieb.
-- 🪶 **Nativ und winzig.** AppKit + SF Symbols, kein Dock-Symbol, keine Drittanbieter-Abhängigkeiten, kein Hintergrund-Daemon, kein kext. Die ganze App besteht aus einer einzigen `App.swift`.
-- 🔍 **Ehrlich beim Zustand.** Sie liest nach jedem Umschalten den aktuellen Systemwert zurück, sodass der Schalter die Realität widerspiegelt und nie eine hoffnungsvolle Annahme.
+|  |  |
+|---|---|
+| 🌙 **Ein Schalter** | Klicke auf den Mond in der Menüleiste und lege den Schalter um. Das Symbol zeigt den Zustand auf einen Blick. |
+| 🔋 **Automatische Abschaltung bei Akku-Mindeststand** | Wähle einen Mindeststand (5–50 %, Standard 15 %). Im Akkubetrieb schaltet es sich selbst ab, bevor du den Akku leerziehst. |
+| 🖥️ **Kein Bildschirm, kein Dongle** | Nur der Deckel geschlossen, im Akkubetrieb. Kein externer Monitor, kein HDMI-Dummy-Stecker. |
+| 🪶 **Winzig und nativ** | AppKit + SF Symbols. Kein Dock-Symbol, kein Hintergrund-Daemon, keine kext, keine Abhängigkeiten. |
 
 ## Installation
 
-### Homebrew (empfohlen)
+**Homebrew** (empfohlen):
 
 ```sh
 brew install --cask aboudjem/tap/sleepless
-```
-
-Das tappt `Aboudjem/homebrew-tap` und installiert `Sleepless.app`. Führe danach die einmalige Berechtigungsvergabe aus (in der App gebündelt), damit sie den Ruhezustand ohne Passwortabfrage umschalten kann. Sie gibt genau aus, was sie schreibt, bevor sie nachfragt:
-
-```sh
+# one-time: add the passwordless grant (it prints exactly what it writes first)
 /Applications/Sleepless.app/Contents/Resources/grant.sh
 ```
 
-### Das Release herunterladen
-
-Hol dir `Sleepless-1.0.0.zip` von den [**Releases**](https://github.com/Aboudjem/Sleepless/releases/latest), entpacke es und verschiebe `Sleepless.app` nach `/Applications`. Da die App ad-hoc signiert (nicht notarisiert) ist, blockiert macOS Gatekeeper den ersten Start: öffne **Systemeinstellungen → Datenschutz & Sicherheit → Trotzdem öffnen**. (Auf macOS 15+ funktioniert der alte Trick mit Rechtsklick → Öffnen nicht mehr.)
-
-### Aus dem Quellcode bauen (keine Gatekeeper-Abfrage)
-
-Das Vertrauensmodell lautet "lies den Quellcode, bau ihn selbst". Lokal gebaute Apps werden nicht unter Quarantäne gestellt und laufen einfach.
+**Aus dem Quellcode bauen** (der Vertrauenspfad: lies ihn, bau ihn, kein Gatekeeper-Hinweis):
 
 ```sh
 git clone https://github.com/Aboudjem/Sleepless.git
-cd Sleepless
-./install.sh        # builds, installs to /Applications, adds the grant + login item
+cd Sleepless && ./install.sh
 ```
 
-`./build.sh` allein erzeugt nur `build/Sleepless.app` (nur Command Line Tools, kein Xcode). `./uninstall.sh` entfernt alles und weist nach, dass die Berechtigung verschwunden ist.
+**Oder lade die App herunter:** Hol dir das [latest release](https://github.com/Aboudjem/Sleepless/releases/latest), entpacke es und verschiebe `Sleepless.app` nach `/Applications`. Sie ist ad-hoc signiert, also bestätige den ersten Start unter **Systemeinstellungen → Datenschutz & Sicherheit → Trotzdem öffnen** (der alte Trick mit Rechtsklick → Öffnen wurde in macOS 15 entfernt).
 
-## Warum es Sleepless gibt
+Klicke dann auf den Mond, lege den Schalter um und schließe den Deckel. `./uninstall.sh` entfernt alles und belegt, dass die Berechtigung weg ist.
 
-Apples `caffeinate` (und jede darauf aufbauende Menüleisten-App wie KeepingYouAwake) **kann** einen Mac bei geschlossenem Deckel **nicht** wach halten. Die IOKit-Power-Assertions, die es verwendet, setzen den hardwareseitigen Clamshell-Sleep-Trigger nicht außer Kraft, sodass das Schließen des Deckels den Mac ungeachtet dessen in den Ruhezustand schickt. Der einzige Systemhebel, der den Clamshell-Sleep außer Kraft setzt, ist `pmset disablesleep`.
+## So funktioniert es
 
-Ein paar Tools greifen zu `disablesleep`, aber jedes lässt eine Lücke: Amphetamine kann es (und noch viel mehr), aber sein Pfad für das geschlossene Display ist auf Apple Silicon notorisch zickig; Macchiato nutzt genau den Mechanismus, liefert aber **keinen** Akkuschutz mit; Clapet greift nur, wenn ein **externes Display** angeschlossen ist. Sleepless ist das zweckgebaute Open-Source-Tool für den schlichten Fall: **Deckel zu, im Akkubetrieb, kein Display, mit einer Abschaltung, sodass man es gefahrlos vergessen kann.**
+`caffeinate` und die dabei genutzten Power Assertions können den Hardware-Trigger beim Schließen des Deckels nicht überstimmen, daher schickt ein geschlossener Deckel den Mac immer in den Ruhezustand. Die eine Systemeinstellung, die das überstimmt, ist `pmset disablesleep`. Sleepless schaltet sie über einen nativen Schalter um, liest den Live-Wert zurück, sodass die Oberfläche nie lügt, und setzt sie bei deinem Akku-Mindeststand automatisch zurück. Ein Neustart setzt sie ebenfalls zurück. [Vollständiges Sicherheitsmodell →](SECURITY.md)
 
-## Vergleich
+## Sleepless im Vergleich zu den Alternativen
 
 | | **Sleepless** | Amphetamine | KeepingYouAwake | Macchiato | Clapet | `caffeinate` |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|
-| Wach, Deckel zu, im Akkubetrieb | ✅ | ✅¹ | ❌ (verweigert) | ✅ | ⚠️ braucht ext. Display | ❌ |
-| Kein externes Display nötig | ✅ | ✅ | n/a | ✅ | ❌ | n/a |
-| Akku-Schwellen-Abschaltung | ✅ | Sitzungsende bei niedrigem Akku | ✅ (aber nicht bei geschlossenem Deckel) | ❌ | ❌ | ❌ |
-| Mechanismus | `pmset disablesleep` + eingegrenzte sudoers | öffentliche API ≈ `disablesleep` + IOKit | `caffeinate` | `pmset disablesleep` + Helfer | `pmset` + sudoers | IOKit-Assertion |
-| Open Source | ✅ MIT | ❌ (App Store) | ✅ MIT | ✅ Apache-2.0 | ✅ GPL-3.0 | in Apple integriert |
-| Sterne | neu | App Store | ~6,6k | ~18 | ~101 | n. v. |
+| Wach, Deckel geschlossen, im Akkubetrieb | ✅ | ✅¹ | ❌ | ✅ | ⚠️ ext. Display | ❌ |
+| Kein externer Bildschirm nötig | ✅ | ✅ | n/v | ✅ | ❌ | n/v |
+| Automatische Abschaltung bei Akku-Mindeststand | ✅ | nur bei niedrigem Akku | ✅² | ❌ | ❌ | ❌ |
+| Open Source | ✅ MIT | ❌ App Store | ✅ MIT | ✅ Apache | ✅ GPL | Apple |
 
-<sub>¹ Amphetamine unterstützt es, setzt auf Apple Silicon aber auf ein separat installiertes "Power Protect"-Skript und bricht Berichten zufolge häufig beim Anschließen/Trennen der Stromversorgung sowie bei KVM-/Dock-Setups ab. Die Sternzahlen wurden am 2026-06-01 erhoben und verschieben sich im Laufe der Zeit. Jede Aussage über einen Mitbewerber ist in den Recherchenotizen belegt; Korrekturen sind willkommen.</sub>
+<sub>¹ Amphetamine kann es, setzt aber auf Apple Silicon auf ein separates "Power Protect"-Skript und bricht Berichten zufolge häufig bei Strom- bzw. Dock-Wechseln ab. &nbsp; ² KeepingYouAwake hat eine Akku-Abschaltung, kann aber konzeptbedingt bei geschlossenem Deckel nicht wach bleiben. Sternzahlen (≈6,6k / ≈18 / ≈101) abgerufen am 2026-06-01; Korrekturen willkommen.</sub>
 
-## Anwendungsfälle
+## Setze es ein, um…
 
-Jeder davon passt zur Akku-Schwelle: leg eine Schwelle fest, mit der du dich wohlfühlst, und geh weg.
+- 🤖 **Einen langen Job zu Ende zu bringen, nachdem du weggegangen bist.** Ein Lauf eines KI-Agenten, ein Build, ein Render, ML-Training, eine große `brew`/`npm`-Installation: schalte es ein, schließe den Deckel, steck es in die Tasche, komm zu einem fertigen Job zurück.
+- 📡 **Deinen Hotspot unterwegs zu teilen.** Internetfreigabe / Persönlicher Hotspot vom Mac läuft auch bei geschlossenem Deckel weiter.
+- ⬇️ **Große Übertragungen laufen zu lassen.** Große Downloads, Uploads oder ein Time-Machine-Backup laufen fertig, während du kurz weg bist.
+- 🖥️ **Einen Server oder eine SSH-Sitzung am Leben zu halten.** Ein lokaler Dev-Server, ein Sync-Daemon oder eine entfernte Sitzung bleibt erreichbar, Deckel geschlossen.
+- 🎧 **Audio weiterlaufen zu lassen.** Musik oder ein langes Render spielt in der Tasche weiter.
 
-- **Lass einen langen Job fertig werden, nachdem du gegangen bist.** Ein Agent-/Claude-Lauf, ein Render, ein Compile, ML-Training, eine große `brew`-/`npm`-Installation: schalt Sleepless ein, schließ den Deckel, leg es in deine Tasche, es läuft weiter.
-- **Geh herum und teile deinen Hotspot.** Persönlicher Hotspot / Internetfreigabe vom Mac bleibt bei geschlossenem Deckel aktiv.
-- **Unbeaufsichtigte Übertragungen.** Große Downloads, Uploads oder ein Time Machine-/Backup-Lauf, der abgeschlossen werden muss, während du dich entfernst.
-- **Halte einen Server oder eine SSH-Sitzung erreichbar.** Ein lokaler Dev-Server, eine SSH-Sitzung oder ein Sync-Daemon bleibt bei geschlossenem Deckel am Leben.
-- **Halte den Ton am Laufen.** Musik, ein langer Cast oder ein Audio-Render läuft in der Tasche weiter.
+> [!TIP]
+> Setze den Akku-Mindeststand auf einen Wert, dem du vertraust (etwa 20 %), und du kannst all das machen, ohne den Akku im Auge behalten zu müssen.
 
-## Sicherheitsmodell
+## Ist es sicher?
 
-Sleepless bittet um ein schmales Stück Root-Rechte, also hier genau, worum es geht. Das vollständige Bedrohungsmodell steht in [SECURITY.md](SECURITY.md).
-
-Eine GUI-App hat kein Terminal, in das man ein Passwort eingeben könnte, deshalb schreibt `install.sh` ein eng eingegrenztes `/etc/sudoers.d`-Drop-in (Eigentümer `root:wheel`, Modus `0440`), in das dein Benutzername eingesetzt wird:
+Ja, und es ist auf Überprüfbarkeit ausgelegt. Eine GUI-App kann kein Passwort eintippen, daher fügt das Installationsprogramm eine eng gefasste `/etc/sudoers.d`-Regel hinzu (root-eigen, `0440`), die **genau zwei Befehle und sonst nichts** erlaubt:
 
 ```
 <you> ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1
 ```
 
-- **Es erlaubt genau zwei Befehle und sonst nichts.** sudoers gleicht Argumente buchstäblich ab, und diese Regel hat keine Platzhalter, sodass `sudo pmset -a sleep 0`, `pmset restoredefaults` oder jeder andere Vektor durchfällt und ein Passwort verlangt. Die Berechtigung lässt sich nicht ausweiten.
-- **Keine Shell, kein Helfer-Skript.** Die App ruft `sudo` mit einem argv-Array auf (kein `/bin/sh -c`), und die Regel zeigt direkt auf Apples `/usr/bin/pmset`. Es gibt kein vom Benutzer beschreibbares Skript, das ein Angreifer umschreiben könnte.
-- **`disablesleep` ist undokumentiert, aber real.** Es steht nicht in `man pmset`, setzt aber das `SleepDisabled`-Flag des Kernels (`pmset -g | grep SleepDisabled`). Weil es undokumentiert ist, könnte Apple es ändern; Sleepless liest den Wert nach jedem Umschalten zurück.
-- **Ein Neustart setzt es auf `0` zurück.** Es ist ein Laufzeit-Flag, also gibt es keine Möglichkeit, deinen Mac dauerhaft am Schlafen zu hindern. Die Akku-Schwelle ist ein zweites Sicherheitsnetz.
-- **Ehrliches Restrisiko:** die Berechtigung ist von Haus aus passwortlos, sodass jeder Prozess, der unter deinem Benutzer läuft, das Flag umlegen könnte. Der schlimmste Fall ist "dein Mac wurde wach gehalten oder durfte schlafen", nicht Datenverlust oder Root-Codeausführung.
-- **Saubere Deinstallation.** `./uninstall.sh` entfernt die App, das Login-Objekt und die Berechtigung und belegt den Entzug, indem es zeigt, dass `sudo -n pmset …` wieder nach einem Passwort fragt.
+- **Sie lässt sich nicht ausweiten.** `sudoers` gleicht Argumente wörtlich ab, ohne Platzhalter, sodass jeder andere Befehl wieder nach einem Passwort fragt.
+- **Kein Daemon, kein Hilfsskript**, das ein Angreifer kapern könnte. Es ruft Apples `/usr/bin/pmset` direkt mit einem argv-Array auf (keine Shell).
+- **Immer reversibel.** Ein Neustart setzt das Flag zurück, der Akku-Mindeststand schaltet es ab, und `./uninstall.sh` entfernt die Berechtigung und belegt es.
+
+Das vollständige Bedrohungsmodell, die undokumentierten, aber realen Belege für `disablesleep` und der Kompromiss bei der Notarisierung stehen in **[SECURITY.md](SECURITY.md)**.
 
 ## FAQ
 
-**Hält es den Mac wirklich bei geschlossenem Deckel, im Akkubetrieb und ohne Display wach?**
-Ja, genau das ist der Sinn. Verifiziert auf macOS 26 (Tahoe) / Apple Silicon.
+<details>
+<summary><b>Funktioniert es wirklich bei geschlossenem Deckel, im Akkubetrieb, ohne Bildschirm?</b></summary>
 
-**Der Mond erscheint nicht in meiner Menüleiste.** macOS 26 kann Menüleisten-Objekte ausblenden. Prüfe die Systemeinstellungen (Kontrollzentrum / Menüleisten-Einstellungen) und stelle sicher, dass Sleepless sein Objekt anzeigen darf; die App läuft, wenn `pgrep -x Sleepless` eine Zahl ausgibt.
+Ja, das ist der ganze Sinn. Verifiziert auf macOS 26 (Tahoe) / Apple Silicon.
+</details>
 
-**Warum ist es nicht notarisiert?** Es ist ein persönliches Open-Source-Tool ohne kostenpflichtige Apple Developer ID, daher ist es ad-hoc signiert. Bau es aus dem Quellcode, um Gatekeeper ganz zu umgehen, oder nutze den **Trotzdem öffnen**-Ablauf für die vorgefertigte App. Notarisierung ist ohnehin keine Garantie gegen Schadsoftware.
+<details>
+<summary><b>Der Mond erscheint nicht in meiner Menüleiste.</b></summary>
 
-**Saugt es meinen Akku leer?** Nur, wenn du die Schwelle ignorierst. Während die App wach ist und der Akku sich entlädt, schaltet sich Sleepless bei dem von dir eingestellten Akkustand (Standard 15 %) ab, und ein Neustart stellt immer den normalen Ruhezustand wieder her.
+macOS 26 kann Elemente der Menüleiste ausblenden. Prüfe die Systemeinstellungen (Kontrollzentrum / Menüleiste) und erlaube Sleepless, sein Element anzuzeigen. Bestätige mit <code>pgrep -x Sleepless</code>, dass es läuft.
+</details>
 
-**Funktioniert es auf Intel-Macs oder älterem macOS?** Es ist auf **macOS 26 Apple Silicon** verifiziert. `disablesleep` ist undokumentiert, daher ist das Verhalten auf anderen Versionen/Hardware nicht garantiert. Probier es aus und sag uns Bescheid; ehrliche Berichte sind willkommen.
+<details>
+<summary><b>Warum ist es nicht notarisiert?</b></summary>
 
-**Wie entferne ich es vollständig?** `./uninstall.sh` (oder lösche `/Applications/Sleepless.app`, entferne `/etc/sudoers.d/sleepless-disablesleep` mit `sudo rm` und führe `launchctl bootout` für das Login-Objekt aus).
+Es ist ein persönliches, quelloffenes Werkzeug ohne bezahlte Apple Developer ID, also ist es ad-hoc signiert. Baue es aus dem Quellcode, um Gatekeeper ganz zu umgehen, oder nutze den <b>Trotzdem öffnen</b>-Ablauf für die vorgefertigte App.
+</details>
+
+<details>
+<summary><b>Zieht es meinen Akku leer?</b></summary>
+
+Nur wenn du den Mindeststand ignorierst. Während es wach ist und entlädt, schaltet es bei dem von dir gesetzten Prozentsatz ab (Standard 15 %), und ein Neustart stellt immer den normalen Ruhezustand wieder her.
+</details>
+
+<details>
+<summary><b>Funktioniert es auf Intel oder älterem macOS?</b></summary>
+
+Es ist auf <b>macOS 26 Apple Silicon</b> verifiziert. <code>disablesleep</code> ist undokumentiert, daher sind andere Versionen oder Hardware nicht garantiert. Probier es aus und melde dich zurück, ehrliche Berichte sind willkommen.
+</details>
 
 ## Mitwirken
 
-Issues und PRs sind willkommen, besonders Übersetzungen und ehrliche Testberichte von anderer Hardware/macOS-Versionen. Siehe [CONTRIBUTING.md](CONTRIBUTING.md) und den [Verhaltenskodex](CODE_OF_CONDUCT.md). Sleepless bleibt bewusst klein: Features, die die Privilegienfläche vergrößern, werden vermutlich nicht aufgenommen.
+Issues und PRs sind willkommen, besonders Übersetzungen und Testberichte von anderer Hardware. Siehe [CONTRIBUTING.md](CONTRIBUTING.md) und den [Code of Conduct](CODE_OF_CONDUCT.md). Sleepless bleibt bewusst klein.
 
 ## Lizenz
 
 [MIT](LICENSE) © 2026 Adam Boudjemaa.
-
----
 
 <p align="center">
   <sub>Wenn Sleepless dir einen Ausflug ins Terminal erspart hat, hilft ein ⭐ anderen, es zu finden.</sub>
