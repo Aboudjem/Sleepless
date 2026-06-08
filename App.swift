@@ -65,27 +65,42 @@ enum SleepGlyph {
 private func makeCupGlyph(_ glyph: SleepGlyph) -> NSImage {
     let cfg = NSImage.SymbolConfiguration(pointSize: 15, weight: .regular).applying(.init(scale: .medium))
     let name = (glyph == .off) ? "cup.and.saucer" : "cup.and.heat.waves.fill"
-    let base = NSImage(systemSymbolName: name, accessibilityDescription: "Sleepless")?
-        .withSymbolConfiguration(cfg)
-        ?? NSImage(systemSymbolName: "cup.and.saucer.fill", accessibilityDescription: "Sleepless")
-        ?? NSImage()
+    func symbol(_ name: String) -> NSImage? {
+        NSImage(systemSymbolName: name, accessibilityDescription: "Sleepless")?
+            .withSymbolConfiguration(cfg)
+    }
+    let base = symbol(name) ?? symbol("cup.and.saucer.fill") ?? NSImage()
 
-    guard glyph == .armed else {
+    let symbolSize = base.size
+    guard symbolSize.width > 0, symbolSize.height > 0 else {
         base.isTemplate = true
         return base
     }
-    // ARMED: full steaming cup + a small filled dot top-right (the "auto-off safety net is live"
-    // mark). Drawn in template black so it tints + inverts with the menu bar exactly like the cup.
-    let size = base.size
-    guard size.width > 0, size.height > 0 else { base.isTemplate = true; return base }
-    let composed = NSImage(size: size)
+
+    let canvasSize = ["cup.and.saucer", "cup.and.heat.waves.fill"]
+        .compactMap { symbol($0)?.size }
+        .reduce(symbolSize) { size, candidate in
+            NSSize(width: max(size.width, candidate.width), height: max(size.height, candidate.height))
+        }
+
+    let composed = NSImage(size: canvasSize)
     composed.lockFocus()
-    base.draw(in: NSRect(origin: .zero, size: size))
-    let d = max(size.height * 0.26, 4)
-    let dot = NSBezierPath(ovalIn: NSRect(x: size.width - d, y: size.height - d, width: d, height: d))
-    NSColor.black.setFill()
-    dot.fill()
+    base.draw(in: NSRect(x: (canvasSize.width - symbolSize.width) / 2,
+                         y: (canvasSize.height - symbolSize.height) / 2,
+                         width: symbolSize.width,
+                         height: symbolSize.height))
+
+    if glyph == .armed {
+        // ARMED: full steaming cup + a small filled dot top-right (the "auto-off safety net is live"
+        // mark). Drawn in template black so it tints + inverts with the menu bar exactly like the cup.
+        let d = max(symbolSize.height * 0.26, 4)
+        let dot = NSBezierPath(ovalIn: NSRect(x: canvasSize.width - d, y: canvasSize.height - d, width: d, height: d))
+        NSColor.black.setFill()
+        dot.fill()
+    }
+
     composed.unlockFocus()
+    composed.alignmentRect = NSRect(origin: .zero, size: canvasSize)
     composed.isTemplate = true
     return composed
 }
@@ -173,7 +188,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         batteryFloorPercent = min(max((UserDefaults.standard.object(forKey: floorKey) as? Int) ?? floorDefault, floorMin), floorMax)
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         if let button = statusItem.button {
             button.image = offGlyph
             button.action = #selector(statusClicked)
