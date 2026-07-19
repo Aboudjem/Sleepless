@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Menu-bar icon no longer disappears after a while on macOS 26. The status item is
+  now created with a fixed square slot, a saved `autosaveName`, and explicit
+  `isVisible = true`, and it is recreated automatically if the backing button ever
+  becomes nil. The state-change pulse animation also avoids mutating the status-button
+  layer, which could destabilize the item on newer macOS.
+
 ## [1.2.7] - 2026-06-03
 
 ### Changed
