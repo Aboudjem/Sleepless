@@ -22,7 +22,7 @@
 //
 // Three small, fail-safe features layer on top, none of which adds a daemon or
 // persists OS state (so "reboot resets it" still holds):
-//   1. Auto-off timer (1h / 2h) — a one-shot in-memory Timer that flips sleep back
+//   1. Auto-off timer (15m / 30m / 1h / 2h) — a one-shot in-memory Timer that flips sleep back
 //      on when it fires. Dies on quit; nothing survives a reboot.
 //   2. Launch at login (SMAppService.mainApp) — OFF by default. The app always
 //      launches reading the TRUE system state, so a login launch can never
@@ -253,7 +253,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let timerLabel = makeLabel("Auto-off timer", font: .systemFont(ofSize: 13), color: .labelColor)
         timerLabel.frame = NSRect(x: ci, y: ci + 3, width: 110, height: 22)
         g2.addSubview(timerLabel)
-        autoOffControl = NSSegmentedControl(labels: ["Off", "1h", "2h"],
+        autoOffControl = NSSegmentedControl(labels: ["Off", "15m", "30m", "1h", "2h"],
                                             trackingMode: .selectOne,
                                             target: self, action: #selector(autoOffChanged(_:)))
         autoOffControl.selectedSegment = 0
@@ -443,8 +443,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Auto-off timer (Feature 1)
     @objc private func autoOffChanged(_ sender: NSSegmentedControl) {
         switch sender.selectedSegment {
-        case 1: autoOffMinutes = 60
-        case 2: autoOffMinutes = 120
+        case 1: autoOffMinutes = 15
+        case 2: autoOffMinutes = 30
+        case 3: autoOffMinutes = 60
+        case 4: autoOffMinutes = 120
         default: autoOffMinutes = 0
         }
         if isOn, autoOffMinutes > 0 {

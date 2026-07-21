@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Auto-off timer now offers 15m and 30m choices in addition to the existing 1h and 2h.
+
 ## [1.2.7] - 2026-06-03
 
 ### Changed

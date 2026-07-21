@@ -62,7 +62,7 @@ Then click the cup in the menu bar, flip the switch, and close the lid.
 | | | |
 |---|---|---|
 | ☕ | **One switch** | Click the menu-bar cup, flip the toggle. |
-| ⏲️ | **Auto-off timer** | 1h or 2h with a live countdown, then off. |
+| ⏲️ | **Auto-off timer** | 15m, 30m, 1h, or 2h with a live countdown, then off. |
 | 🔋 | **Battery floor** | Auto-off at 5–50% on battery (default 15%). |
 | 🪫 | **Low Power Mode** | Steps aside when LPM is on, on battery. |
 | 🖥️ | **No dongle** | Lid closed, on battery. No monitor, no HDMI plug. |
