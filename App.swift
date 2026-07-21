@@ -162,13 +162,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var userForcedOn = false   // user deliberately turned it on; honor over the Low Power Mode auto-off (the hard battery floor still wins)
 
     // Auto-off timer (in-memory; dies on quit, never survives a reboot)
-    private var autoOffMinutes = 0           // 0 = none (stay on until off), 60, or 120
+    private var autoOffMinutes = 0           // 0 = none (stay on until off), 15, 30, 60, or 120
     private var keepAwakeTimer: Timer?       // one-shot: flips sleep back on when it fires
     private var countdownTicker: Timer?      // 1 Hz label refresh, only while the popover is open
     private var timerEndDate: Date?
 
     private let popoverWidth: CGFloat = 320
-    private let popoverHeight: CGFloat = 432
+    private let popoverHeight: CGFloat = 452
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -247,11 +247,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         captionLabel.cell?.wraps = true
         g1.addSubview(captionLabel)
 
-        // GROUP 2 — auto-off timer (label + segmented [Off | 1h | 2h] + countdown)
-        let g2y = g1y + g1h + 12, g2h: CGFloat = 78
+        // GROUP 2 — auto-off timer (label over segmented [Off | 15m | 30m | 1h | 2h] + countdown)
+        let g2y = g1y + g1h + 12, g2h: CGFloat = 100
         let g2 = makeCard(NSRect(x: pad, y: g2y, width: contentW, height: g2h))
         let timerLabel = makeLabel("Auto-off timer", font: .systemFont(ofSize: 13), color: .labelColor)
-        timerLabel.frame = NSRect(x: ci, y: ci + 3, width: 110, height: 22)
+        timerLabel.frame = NSRect(x: ci, y: ci, width: cw, height: 22)
         g2.addSubview(timerLabel)
         autoOffControl = NSSegmentedControl(labels: ["Off", "15m", "30m", "1h", "2h"],
                                             trackingMode: .selectOne,
@@ -259,13 +259,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         autoOffControl.selectedSegment = 0
         autoOffControl.controlSize = .regular
         autoOffControl.segmentStyle = .automatic
-        autoOffControl.sizeToFit()
-        let segSize = autoOffControl.frame.size
-        let segW = segSize.width > 0 ? segSize.width : 150
-        autoOffControl.frame = NSRect(x: contentW - ci - segW, y: ci, width: segW, height: max(segSize.height, 24))
+        autoOffControl.frame = NSRect(x: ci, y: ci + 28, width: cw, height: 24)
         g2.addSubview(autoOffControl)
         countdownLabel = makeLabel("", font: .systemFont(ofSize: 12), color: .secondaryLabelColor)
-        countdownLabel.frame = NSRect(x: ci, y: ci + 36, width: cw, height: 16)
+        countdownLabel.frame = NSRect(x: ci, y: ci + 60, width: cw, height: 16)
         g2.addSubview(countdownLabel)
 
         // GROUP 3 — battery-floor (label + value + slider + min/max hints)
