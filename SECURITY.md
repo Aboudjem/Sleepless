@@ -14,33 +14,29 @@ Supported version: the latest release on the `main` branch.
 
 ## What Sleepless actually does
 
-Sleepless keeps a Mac awake with the lid closed by toggling an undocumented but
-long-standing `pmset` setting:
+Sleepless first snapshots the affected Battery, AC, and optional UPS values,
+then applies this fixed profile:
 
-```
-sudo pmset -a disablesleep 1   # keep awake, even lid-closed
-sudo pmset -a disablesleep 0   # restore normal sleep
-```
-
-`disablesleep` is **not** in Apple's `pmset(1)` man page (check: `man pmset`), but it
-sets the kernel's `SleepDisabled` flag, which you can observe yourself:
-
-```
-pmset -g | grep SleepDisabled   # 1 = on, 0/absent = off
+```sh
+pmset -a disablesleep 1 sleep 0 disksleep 0 displaysleep 10 \
+  powernap 0 tcpkeepalive 1 womp 1
 ```
 
-Because it is undocumented, Apple could change or remove it in a future macOS. Sleepless
-reads the live value back after every toggle, so the menu-bar state always reflects
-reality rather than assuming the command worked.
+The app also owns a `caffeinate -ims` process. It binds that process to the
+Sleepless PID, so its assertions disappear if the app exits.
+
+On OFF, the helper restores only those whitelisted keys, using `pmset -b`,
+`pmset -c`, and `pmset -u` so distinct power-source values are preserved. The
+snapshot is deleted only after every restored value and `SleepDisabled` verify.
 
 ## The passwordless grant — exactly what it permits
 
-A GUI app has no terminal to type a password into, so Sleepless runs `pmset` through a
-tightly scoped `/etc/sudoers.d` drop-in. `install.sh` writes this (with your username
-substituted for `__USER__`), owned `root:wheel`, mode `0440`:
+A GUI app has no terminal to type a password into. `install.sh` therefore copies
+`powerctl.sh` to the fixed path below as `root:wheel 0755`, then installs a
+`root:wheel 0440` sudoers drop-in:
 
-```
-<you> ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1
+```text
+<you> ALL=(root) NOPASSWD: /Library/PrivilegedHelperTools/com.aboudjem.Sleepless.powerctl on, /Library/PrivilegedHelperTools/com.aboudjem.Sleepless.powerctl off
 ```
 
 **This grant lets one user run, as root, exactly two fully-specified commands and nothing
@@ -51,37 +47,44 @@ the user on the command line (or match the wildcards if there are any)."*
 
 Consequences you can rely on:
 
-- `sudo pmset -a sleep 0`, `sudo pmset restoredefaults`, `sudo pmset -a hibernatemode 0`,
-  or any other argument vector **do not match** the rule and will demand a password. The
-  grant cannot be widened by appending flags.
+- Direct `sudo pmset ...`, helper arguments other than exact `on` or `off`, and
+  appended arguments **do not match** the rule.
 - Sleepless calls `sudo` with an **argv array**, not a shell string
   (`Process.arguments` in `App.swift`), so there is no `/bin/sh -c`, no command
   substitution, and no word-splitting surface inside the app.
-- There is **no helper script**. The classic sudoers footgun is a *user-writable* script
-  that root executes — rewrite it, get root. Sleepless points the rule directly at Apple's
-  `/usr/bin/pmset`, and the sudoers file itself is `root:wheel 0440` (you cannot modify it
-  without `sudo`). Both mitigations are exactly what the literature prescribes.
+- The installed helper is **not user-writable**. It has fixed paths, a fixed
+  `PATH`, a fixed whitelist of keys, integer-only snapshot values, and no
+  caller-provided setting names, values, or file paths.
+- The snapshot lives at `/var/db/com.aboudjem.Sleepless/power-state`. Its directory
+  is root-owned; the file is readable so the unprivileged app can report managed
+  state, but it cannot be modified by the user.
 
 ## Honest residual risk
 
-The grant is passwordless **by design**: any process already running as your user can flip
-the sleep flag silently. We are not pretending the attack surface is zero. But the worst
-case is *"your Mac was kept awake, or allowed to sleep."* It is **not** data exfiltration
-and **not** root code execution — the two pinned arguments to one Apple binary do not
-provide either.
+The grant is passwordless **by design**: any process already running as your
+user can request the fixed awake profile or restore the stored snapshot. The
+helper is a larger attack surface than the upstream project's two direct
+`pmset` commands, which is why it is root-owned and accepts only fixed actions.
+It never executes snapshot text or caller-controlled commands.
 
-If that trade is not acceptable to you, build from source and **don't** run `install.sh`;
-you can toggle `sudo pmset -a disablesleep 1/0` manually instead and skip the grant.
+If that trade is not acceptable, do not run `install.sh`.
 
-## Reboot resets it (a safety net you can verify)
+## Crash and reboot recovery
 
-`disablesleep` is a **runtime** setting. A reboot restores normal sleep — there is no way
-for Sleepless to leave your Mac permanently unable to sleep. Verify it yourself: toggle on,
-reboot, then `pmset -g | grep SleepDisabled` should read `0`.
+The snapshot persists until a verified OFF. Normal app termination restores it,
+and the app-owned `caffeinate` exits automatically with Sleepless. If the app
+crashes, relaunching it recovers the managed state. After a reboot,
+`SleepDisabled` resets; Sleepless treats an existing snapshot plus a cleared
+flag as stale and restores the saved profile instead of re-arming.
 
 Sleepless adds a second belt-and-suspenders: a **battery-floor auto-off** (default 15%)
-that flips the flag back to `0` while the Mac is awake and discharging, so a forgotten
-"on" state can't drain the battery to empty.
+that invokes the same verified restore while the Mac is awake and discharging.
+
+If Sleepless does not launch after an abnormal shutdown, run:
+
+```sh
+sudo /Library/PrivilegedHelperTools/com.aboudjem.Sleepless.powerctl off
+```
 
 ## Code signing, notarization, and Gatekeeper
 
@@ -120,7 +123,7 @@ project's build, with no Apple account and no shared secret:
 
 ```sh
 shasum -a 256 -c SHA256SUMS                                  # bytes match what was published
-gh attestation verify Sleepless-<version>.zip -R Aboudjem/Sleepless   # built by this repo's release workflow
+gh attestation verify Sleepless-<version>.zip -R Aboudjem/Sleepless
 ```
 
 The full walkthrough (what each check proves, how to reproduce the build, and a VirusTotal
@@ -128,10 +131,13 @@ scan) is in **[docs/AUDIT.md](docs/AUDIT.md)**.
 
 ## Completely removing the privilege
 
-`./uninstall.sh` restores normal sleep, removes the app and login item, deletes the
-sudoers drop-in, and then **proves** revocation by showing that `sudo -n pmset …` prompts
-for a password again. The single file to audit or delete by hand is
-`/etc/sudoers.d/sleepless-disablesleep`.
+`./uninstall.sh` first requires a successful snapshot restore, then removes the
+app, login item, root-owned helper, state directory, and sudoers drop-in. The
+privileged files to audit are:
+
+- `/Library/PrivilegedHelperTools/com.aboudjem.Sleepless.powerctl`
+- `/etc/sudoers.d/sleepless-powerctl`
+- `/var/db/com.aboudjem.Sleepless/power-state` while ON
 
 ## Primary sources
 

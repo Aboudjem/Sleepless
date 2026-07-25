@@ -14,13 +14,15 @@ The whole app is one file. To satisfy yourself it does what it claims and nothin
 
 | Read | What you are checking |
 |---|---|
-| [`App.swift`](../App.swift) | The only thing it runs as root is `sudo -n /usr/bin/pmset -a disablesleep 0/1` (`setDisableSleep`). No network calls, no file writes outside `UserDefaults`, no shell strings. |
-| [`sleepless.sudoers.template`](../sleepless.sudoers.template) / [`grant.sh`](../grant.sh) | The passwordless grant permits exactly those two fully-specified commands, no wildcards, installed `root:wheel 0440`. |
+| [`App.swift`](../App.swift) | Calls only the fixed root-owned helper actions `on` and `off`; owns and stops its own `caffeinate` process. No network calls. |
+| [`powerctl.sh`](../powerctl.sh) | Snapshots a fixed whitelist of power values, applies the fixed awake profile, and restores only validated integer values. |
+| [`sleepless.sudoers.template`](../sleepless.sudoers.template) / [`grant.sh`](../grant.sh) | Installs the helper `root:wheel 0755`; the passwordless grant permits its exact `on` and `off` argument vectors, with no wildcards. |
 | [`build.sh`](../build.sh) | `swiftc` + a hand-assembled, ad-hoc-signed bundle. No downloaded blobs, no install-time scripts baked into the binary. |
-| [`uninstall.sh`](../uninstall.sh) | Removes the app, the login item, and the sudoers drop-in, then proves `sudo -n pmset …` prompts again. |
+| [`uninstall.sh`](../uninstall.sh) | Requires a successful restore, then removes the app, helper, state, login item, and sudoers drop-in. |
 
-The single privileged file on your system is `/etc/sudoers.d/sleepless-disablesleep`. Read
-it, and `sudo rm` it any time to revoke everything.
+The privileged files are `/Library/PrivilegedHelperTools/com.aboudjem.Sleepless.powerctl`
+and `/etc/sudoers.d/sleepless-powerctl`; an active snapshot is stored under
+`/var/db/com.aboudjem.Sleepless`.
 
 ## Verify a release you downloaded (did not build)
 

@@ -1,15 +1,12 @@
 // App.swift. Sleepless: a standalone menu-bar toggle that keeps the Mac running
-// with the lid closed (on battery, no external display) via `pmset disablesleep`.
+// with the lid closed while preserving the user's original power profiles.
 //
-// Mechanism (verified live on this machine; disablesleep is UNDOCUMENTED in
-// pmset(1) but real. It sets IORegistry "SleepDisabled" = Yes and disables
-// idle + Apple-menu + lid-close clamshell sleep):
-//   ON : sudo pmset -a disablesleep 1
-//   OFF: sudo pmset -a disablesleep 0
-//   READ (no root): pmset -g | grep -i SleepDisabled  (value 1 = ON; 0/absent = OFF)
-// The OFF/ON commands run passwordless via a tightly-scoped /etc/sudoers.d drop-in.
-// disablesleep is runtime-only and resets to 0 on reboot, and that reset is a
-// deliberate safety feature; the app does NOT auto re-arm.
+// Mechanism:
+//   ON : snapshot Battery/AC settings, apply the fixed `nos` pmset profile, and
+//        launch an app-owned `caffeinate -ims` assertion.
+//   OFF: restore and verify the exact snapshot before deleting it.
+// A root-owned helper accepts only `on`/`off`; sudoers grants those two exact
+// argument vectors. The app never accepts caller-supplied pmset keys or values.
 //
 // UI: clicking the menu-bar coffee cup opens a small native popover with an NSSwitch
 // toggle (the System-Settings control), a state caption, an auto-off timer, the
@@ -20,13 +17,11 @@
 // FULL cup means it is being kept awake (caffeinated), and a full cup with a small
 // dot means it is awake on battery with the auto-off safety net live.
 //
-// Three small, fail-safe features layer on top, none of which adds a daemon or
-// persists OS state (so "reboot resets it" still holds):
+// Three small, fail-safe features layer on top:
 //   1. Auto-off timer (1h / 2h) — a one-shot in-memory Timer that flips sleep back
-//      on when it fires. Dies on quit; nothing survives a reboot.
+//      on when it fires.
 //   2. Launch at login (SMAppService.mainApp) — OFF by default. The app always
-//      launches reading the TRUE system state, so a login launch can never
-//      re-enable disablesleep on its own.
+//      launches by reading the managed snapshot and the live SleepDisabled flag.
 //   3. Low-Power-Mode auto-off — on battery, if Low Power Mode is on, Sleepless
 //      turns itself off. Same shape as the battery floor, evaluated on the same tick.
 //
@@ -45,6 +40,8 @@ private let floorKey = "batteryFloorPercent"
 private let floorDefault = 15
 private let floorMin = 5
 private let floorMax = 50
+private let powerHelperPath = "/Library/PrivilegedHelperTools/com.aboudjem.Sleepless.powerctl"
+private let powerStatePath = "/var/db/com.aboudjem.Sleepless/power-state"
 
 // MARK: - Menu-bar coffee glyph (native SF Symbols, MONOCHROME template — state by SHAPE)
 // macOS convention: a menu-bar extra is a template image (no colour) so it adapts to light/dark
@@ -141,6 +138,7 @@ private final class CardView: NSView {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var timer: Timer?
+    private var caffeinateProcess: Process?
     private let onGlyph = makeCupGlyph(.on)
     private let offGlyph = makeCupGlyph(.off)
     private let armedGlyph = makeCupGlyph(.armed)
@@ -187,6 +185,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         refresh()   // reflect TRUE system state on launch (never a stale assumption)
         timer = Timer.scheduledTimer(timeInterval: pollInterval, target: self,
                                      selector: #selector(poll), userInfo: nil, repeats: true)
+    }
+
+    /// Best-effort restoration for logout, shutdown, or external app termination.
+    ///
+    /// - Parameter notification: The AppKit termination notification.
+    func applicationWillTerminate(_ notification: Notification) {
+        if readManagedState() {
+            _ = setManagedAwake(false)
+        }
+        stopCaffeinate()
     }
 
     // MARK: - Popover content (native NSSwitch toggle, macOS-aligned)
@@ -306,7 +314,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         g4.addSubview(loginSwitch)
 
         // Footer — Quit (separated by space, not a hairline)
-        let quit = NSButton(title: "Quit Sleepless", target: self, action: #selector(quit))
+        let quit = NSButton(title: "Quit Sleepless", target: self, action: #selector(quit(_:)))
         quit.controlSize = .regular
         quit.bezelStyle = .rounded
         quit.sizeToFit()
@@ -357,28 +365,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func switchToggled(_ sender: NSSwitch) {
         if performToggle(wantOn: sender.state == .on) {
-            sender.state = .off   // setup needed / failed: reflect reality (performToggle notified)
+            sender.state = isOn ? .on : .off
         }
     }
 
-    // Core keep-awake toggle, decoupled from the UI sender. Returns true ONLY when the user
-    // must act (the passwordless grant is missing and setup did not complete) so the caller can
-    // reflect OFF. The decision to prompt is made on the REAL sudo result (see setDisableSleep),
-    // never by re-reading SleepDisabled: a successful sudo means the command ran, even if a
-    // safety net (Low Power Mode / battery floor) legitimately turns sleep back on afterwards —
-    // which must NOT be mistaken for "permission missing" and trigger a password prompt. This
-    // unobservable, state-proxy decision is what made earlier releases re-prompt spuriously.
+    /// Applies or restores the complete managed power profile.
+    ///
+    /// - Parameter wantOn: Whether the user's saved `nos` behavior should be active.
+    /// - Returns: `true` when the requested transition failed and the UI must snap back.
     @discardableResult
     private func performToggle(wantOn: Bool) -> Bool {
-        var result = setDisableSleep(wantOn)
-        // Only a genuinely MISSING grant warrants the one-time native-auth setup. A successful
-        // sudo (.ok) — or any other failure — never re-prompts here.
-        if wantOn, result == .grantMissing {
-            if installGrantViaAuth() { result = setDisableSleep(true) }
+        var result = setManagedAwake(wantOn)
+        if result == .grantMissing {
+            if installGrantViaAuth() { result = setManagedAwake(wantOn) }
             if result != .ok {
-                notify("Couldn't keep awake. The permission isn't set up yet.")
+                notify("Couldn't update the power profile. Permission setup didn't complete.")
                 return true
             }
+        }
+        if case let .failed(message) = result {
+            NSLog("Sleepless: power-profile transition failed: %@", message)
+            notify("Couldn't update the power profile. Your previous settings were kept.")
+            return true
         }
         // A deliberate, successful turn-on wins over the Low Power Mode auto-off (hard floor still wins).
         userForcedOn = wantOn && result == .ok
@@ -396,8 +404,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func installGrantViaAuth() -> Bool {
         let intro = NSAlert()
         intro.alertStyle = .informational
-        intro.messageText = "Enable keeping your Mac awake"
-        intro.informativeText = "Sleepless flips a protected macOS setting (pmset disablesleep), so it needs your permission once. macOS will ask you to authenticate (Touch ID or your password). After that the switch works instantly, with no more prompts."
+        intro.messageText = "Allow managed power profiles"
+        intro.informativeText = "Sleepless saves your current power settings, applies the lid-closed awake profile, and restores the saved settings when switched off. macOS needs your permission once to install the restricted on/off helper."
         intro.addButton(withTitle: "Enable")
         intro.addButton(withTitle: "Not now")
         NSApp.activate(ignoringOtherApps: true)
@@ -473,12 +481,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func keepAwakeTimerFired() {
-        setDisableSleep(false)
+        let result = setManagedAwake(false)
         cancelKeepAwakeTimer()
         autoOffMinutes = 0
         autoOffControl?.selectedSegment = 0
-        applyUI(on: readSleepDisabled())
-        notify("Auto-off timer ended. Sleepless turned off.")
+        refresh()
+        if result == .ok {
+            notify("Auto-off timer ended. Your previous power settings were restored.")
+        } else {
+            notify("Auto-off timer ended, but restoring your power settings failed.")
+        }
     }
 
     private func startCountdownTicker() {
@@ -514,7 +526,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Core state sync
     @objc private func refresh() {
-        let on = readSleepDisabled()
+        var managed = readManagedState()
+        if managed && !readSleepDisabled(), setManagedAwake(false) == .ok {
+            managed = false
+        }
+        let on = managed && readSleepDisabled()
+        if on {
+            _ = startCaffeinate()
+        } else {
+            stopCaffeinate()
+        }
         applyUI(on: on)
         if on { enforceSafetyNets() }
     }
@@ -566,18 +587,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         renderText()
     }
 
-    // Result of the privileged keep-awake toggle, based on sudo's REAL exit status — not on a
-    // second, independent state read. `.ok` = the command ran; `.grantMissing` = the passwordless
-    // sudoers grant isn't installed (sudo -n refused), the one case that warrants setup; `.failed`
-    // = any other error. Using sudo's own result (instead of re-reading SleepDisabled) is the fix:
-    // a safety net flipping sleep back on must never look like "permission missing" and re-prompt.
+    // Result of a privileged managed-profile transition.
     private enum ToggleResult: Equatable { case ok, grantMissing, failed(String) }
 
+    /// Applies or restores the saved power profile through the fixed root-owned helper.
+    ///
+    /// - Parameter on: `true` applies the managed awake profile; `false` restores its snapshot.
+    /// - Returns: The verified helper result.
     @discardableResult
-    private func setDisableSleep(_ on: Bool) -> ToggleResult {
-        // sudo -n: never prompt (GUI app has no TTY). The exact argument vector matches the
-        // NOPASSWD sudoers grant, so this runs without a password.
-        let (exit, _, err) = runPrivileged(["-n", "/usr/bin/pmset", "-a", "disablesleep", on ? "1" : "0"])
+    private func setManagedAwake(_ on: Bool) -> ToggleResult {
+        let action = on ? "on" : "off"
+        let (exit, _, err) = runPrivileged(["-n", powerHelperPath, action])
         let result: ToggleResult
         if exit == 0 {
             result = .ok
@@ -588,7 +608,53 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             result = .failed(err.isEmpty ? "exit \(exit)" : err.trimmingCharacters(in: .whitespacesAndNewlines))
         }
+        guard result == .ok else { return result }
+
+        if on {
+            if !startCaffeinate() {
+                let rollback = runPrivileged(["-n", powerHelperPath, "off"])
+                let suffix = rollback.exit == 0 ? "original settings restored" : "rollback also failed"
+                return .failed("couldn't start caffeinate; \(suffix)")
+            }
+        } else {
+            stopCaffeinate()
+        }
         return result
+    }
+
+    /// Starts the app-owned equivalent of `caffeinate -ims`.
+    ///
+    /// The `-w` binding makes caffeinate exit automatically if Sleepless terminates.
+    ///
+    /// - Returns: `true` when a live assertion process exists.
+    @discardableResult
+    private func startCaffeinate() -> Bool {
+        if let process = caffeinateProcess, process.isRunning { return true }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/caffeinate")
+        process.arguments = ["-ims", "-w", "\(ProcessInfo.processInfo.processIdentifier)"]
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        do {
+            try process.run()
+            caffeinateProcess = process
+            return process.isRunning
+        } catch {
+            NSLog("Sleepless: failed to launch caffeinate: %@", error.localizedDescription)
+            caffeinateProcess = nil
+            return false
+        }
+    }
+
+    /// Stops only the caffeinate process launched by this app.
+    private func stopCaffeinate() {
+        guard let process = caffeinateProcess else { return }
+        if process.isRunning {
+            process.terminate()
+            process.waitUntilExit()
+        }
+        caffeinateProcess = nil
     }
 
     // Run a privileged command via sudo, capturing exit status + stderr (which the generic
@@ -625,20 +691,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard onBattery, discharging else { return }
         // Hard battery floor ALWAYS wins, even over a deliberate turn-on: never drain to empty.
         if percent <= batteryFloorPercent {
-            setDisableSleep(false); userForcedOn = false
-            applyUI(on: readSleepDisabled())
-            notify("Battery low (\(percent)%). Sleepless turned off.")
+            let result = setManagedAwake(false); userForcedOn = false
+            refresh()
+            notify(result == .ok
+                ? "Battery low (\(percent)%). Previous power settings restored."
+                : "Battery low (\(percent)%), but restoring power settings failed.")
             return
         }
         // Low Power Mode auto-off, UNLESS the user deliberately chose to keep awake this session.
         if ProcessInfo.processInfo.isLowPowerModeEnabled && !userForcedOn {
-            setDisableSleep(false)
-            applyUI(on: readSleepDisabled())
-            notify("Low Power Mode on. Sleepless turned off.")
+            let result = setManagedAwake(false)
+            refresh()
+            notify(result == .ok
+                ? "Low Power Mode on. Previous power settings restored."
+                : "Low Power Mode on, but restoring power settings failed.")
         }
     }
 
     // MARK: - Readers (no root needed)
+    /// Returns whether Sleepless currently owns a recoverable power snapshot.
+    ///
+    /// - Returns: `true` while the managed awake profile is active.
+    private func readManagedState() -> Bool {
+        FileManager.default.fileExists(atPath: powerStatePath)
+    }
+
     private func readSleepDisabled() -> Bool {
         let out = runCapture("/usr/bin/pmset", ["-g"])
         for line in out.split(whereSeparator: { $0 == "\n" }) {
@@ -687,7 +764,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return String(data: data, encoding: .utf8) ?? ""
     }
 
-    @objc private func quit() { NSApp.terminate(nil) }
+    /// Restores the saved profile before closing the menu-bar app.
+    ///
+    /// - Parameter sender: The Quit button sender.
+    @objc private func quit(_ sender: Any?) {
+        if readManagedState(), performToggle(wantOn: false) {
+            notify("Sleepless stayed open because restoring your power settings failed.")
+            return
+        }
+        NSApp.terminate(nil)
+    }
 }
 
 @main

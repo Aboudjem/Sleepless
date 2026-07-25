@@ -69,8 +69,9 @@ cp "$ICNS" "$CONTENTS/Resources/$APP_NAME.icns"
 chmod +x "$CONTENTS/MacOS/$APP_NAME"
 # Ship the grant + uninstall scripts inside the bundle so Homebrew-cask users (who get
 # only the .app) can run the one-time passwordless grant and a clean uninstall.
-cp "$REPO/grant.sh" "$REPO/uninstall.sh" "$CONTENTS/Resources/"
-chmod +x "$CONTENTS/Resources/grant.sh" "$CONTENTS/Resources/uninstall.sh"
+cp "$REPO/grant.sh" "$REPO/uninstall.sh" "$REPO/powerctl.sh" "$CONTENTS/Resources/"
+chmod +x "$CONTENTS/Resources/grant.sh" "$CONTENTS/Resources/uninstall.sh" \
+  "$CONTENTS/Resources/powerctl.sh"
 rm -rf "$BIN_TMP"
 
 # 4. Ad-hoc sign (no Apple Developer ID needed; trust comes from building it yourself).

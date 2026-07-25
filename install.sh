@@ -10,7 +10,8 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_NAME="Sleepless"
 APP="/Applications/$APP_NAME.app"
 BUNDLE_ID="com.aboudjem.Sleepless"
-SUDOERS_DST="/etc/sudoers.d/sleepless-disablesleep"
+SUDOERS_DST="/etc/sudoers.d/sleepless-powerctl"
+HELPER_DST="/Library/PrivilegedHelperTools/com.aboudjem.Sleepless.powerctl"
 LAUNCH_AGENT="$HOME/Library/LaunchAgents/$BUNDLE_ID.plist"
 USER_NAME="$(id -un)"
 
@@ -18,16 +19,22 @@ echo "Sleepless installer"
 echo "==================="
 echo "This will:"
 echo "  1. Build $APP_NAME.app and copy it to /Applications."
-echo "  2. Install a passwordless sudo grant at $SUDOERS_DST so the app can flip"
-echo "     lid-close sleep without prompting. The grant (root:wheel, 0440) is EXACTLY:"
+echo "  2. Install a root-owned fixed helper at $HELPER_DST and a passwordless"
+echo "     exact-argument grant at $SUDOERS_DST:"
 echo ""
-echo "       $USER_NAME ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1"
+echo "       $USER_NAME ALL=(root) NOPASSWD: $HELPER_DST on, $HELPER_DST off"
 echo ""
-echo "     That is the only thing it permits — turn lid-close sleep on or off. Nothing else."
+echo "     The helper snapshots your current profile, applies the fixed awake profile,"
+echo "     and restores the snapshot. It accepts no caller-supplied settings."
 echo "  3. Add a login item (~/Library/LaunchAgents/$BUNDLE_ID.plist) so it starts at login."
 echo ""
 read -r -p "Continue? [y/N] " reply
 case "$reply" in [yY]*) ;; *) echo "Aborted."; exit 1 ;; esac
+
+# Stop an older running binary before replacing its bundle. Its termination
+# handler restores the legacy OFF state, and `open` below then launches the new binary.
+echo "==> Quitting any running Sleepless instance"
+osascript -e "quit app \"$APP_NAME\"" 2>/dev/null || true
 
 # 1. Build into /Applications.
 echo "==> Building into /Applications"

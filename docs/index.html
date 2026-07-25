@@ -4,18 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sleepless: keep your Mac awake with the lid closed</title>
-<meta name="description" content="Sleepless keeps your MacBook awake with the lid (the laptop flap) closed, on battery, with no external display. A native menu-bar app using pmset disablesleep, with an auto-off timer and a battery-floor cutoff. Open source, MIT.">
+<meta name="description" content="Sleepless keeps long-running Mac jobs alive with the lid closed using a recoverable, layered awake profile. Native menu-bar app, open source, MIT.">
 <link rel="canonical" href="https://aboudjem.github.io/Sleepless/">
 <meta name="theme-color" content="#0A0A14">
 
 <meta property="og:type" content="website">
 <meta property="og:title" content="Sleepless: keep your Mac awake with the lid closed">
-<meta property="og:description" content="Native macOS menu-bar app that keeps your MacBook awake lid-closed, on battery, no external display. pmset disablesleep, done safely. Open source, MIT.">
+<meta property="og:description" content="Native macOS menu-bar app with a layered lid-closed awake profile and exact power-setting restoration. Open source, MIT.">
 <meta property="og:url" content="https://aboudjem.github.io/Sleepless/">
 <meta property="og:image" content="https://aboudjem.github.io/Sleepless/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Sleepless: keep your Mac awake with the lid closed">
-<meta name="twitter:description" content="Native macOS menu-bar app. Lid closed, on battery, no external display. pmset disablesleep, done safely. Open source, MIT.">
+<meta name="twitter:description" content="Layered lid-closed awake profile, exact power-setting restoration, native macOS menu-bar app.">
 <meta name="twitter:image" content="https://aboudjem.github.io/Sleepless/og.png">
 
 <link rel="icon" type="image/png" href="icon.png">
@@ -32,7 +32,7 @@
   "name": "Sleepless",
   "operatingSystem": "macOS 26 (Apple Silicon)",
   "applicationCategory": "UtilitiesApplication",
-  "description": "A native macOS menu-bar app that keeps your MacBook awake with the lid closed, on battery, with no external display, using pmset disablesleep, with an auto-off timer and a battery-floor cutoff.",
+  "description": "A native macOS menu-bar app that keeps long-running jobs alive with the lid closed using a recoverable, layered awake profile.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "license": "https://opensource.org/licenses/MIT",
   "url": "https://github.com/Aboudjem/Sleepless",
@@ -44,9 +44,9 @@
   "@context": "https://schema.org",
   "@type": "FAQPage",
   "mainEntity": [
-    {"@type":"Question","name":"How do I keep my MacBook awake with the lid closed without a monitor?","acceptedAnswer":{"@type":"Answer","text":"Install Sleepless, click the coffee cup in the menu bar, flip the switch on, and close the lid (the laptop screen, also called the flap). It keeps the Mac awake on battery with no external display, using pmset disablesleep. No dummy HDMI plug or clamshell adapter is needed."}},
-    {"@type":"Question","name":"Why does my MacBook sleep when I close the lid even with Amphetamine or KeepingYouAwake?","acceptedAnswer":{"@type":"Answer","text":"Those tools are built on macOS power assertions, which stop the idle timer but cannot override the hardware lid-close trigger. KeepingYouAwake wraps caffeinate, which its maintainer confirms cannot do lid-close. pmset disablesleep, which Sleepless uses, is a lower-level setting that can."}},
-    {"@type":"Question","name":"Does pmset disablesleep still work on Apple Silicon?","acceptedAnswer":{"@type":"Answer","text":"Yes. pmset -a disablesleep 1 sets the kernel's SleepDisabled flag on Apple Silicon, confirmed firsthand on macOS 26.3, which keeps a MacBook awake with the lid closed on battery. Apple does not officially document the setting, so verify it with pmset -g | grep SleepDisabled. Most claims that it stopped working actually describe caffeinate, a different mechanism."}},
+    {"@type":"Question","name":"How do I keep my MacBook awake with the lid closed without a monitor?","acceptedAnswer":{"@type":"Answer","text":"Install Sleepless, click the coffee cup, and flip the switch. It snapshots the affected settings, applies a fixed layered awake profile, and restores the snapshot on OFF."}},
+    {"@type":"Question","name":"Why does my MacBook sleep when I close the lid even with a caffeinate-based app?","acceptedAnswer":{"@type":"Answer","text":"Power assertions stop idle sleep but do not cover the lid-close trigger by themselves. Sleepless combines the undocumented SleepDisabled flag with fixed idle, disk, and network settings plus its own caffeinate assertion."}},
+    {"@type":"Question","name":"Why does Sleepless use more than pmset disablesleep?","acceptedAnswer":{"@type":"Answer","text":"One undocumented kernel flag is not an end-to-end guarantee for every long-running process. Sleepless applies and verifies a layered profile, then restores the exact previous Battery and AC values."}},
     {"@type":"Question","name":"Do I need a dummy HDMI display plug to use clamshell mode?","acceptedAnswer":{"@type":"Answer","text":"No. Apple's official clamshell mode needs external power and a display, but Sleepless keeps the Mac awake with the lid closed on battery alone, with no display and no HDMI dongle."}}
   ]
 }
@@ -342,7 +342,7 @@
       <div class="trust-grid">
         <div class="ts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg><div><b>Build provenance</b><span>SLSA attestation signed via Sigstore in CI. Verify with <code>gh attestation verify</code>.</span></div></div>
         <div class="ts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v6H4z"/><path d="M4 14h10v6H4z"/><path d="M18 14v6M21 17h-6"/></svg><div><b>SHA-256 checksums</b><span>Every release ships <code>SHA256SUMS</code>. No Apple account needed to check.</span></div></div>
-        <div class="ts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/><path d="m4 4 16 16" opacity="0"/></svg><div><b>No telemetry</b><span>No analytics, no network calls. It only flips one local <code>pmset</code> flag.</span></div></div>
+        <div class="ts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/><path d="m4 4 16 16" opacity="0"/></svg><div><b>No telemetry</b><span>No analytics or network calls. The power snapshot stays on this Mac.</span></div></div>
         <div class="ts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18 22 12 16 6"/><path d="M8 6 2 12 8 18"/></svg><div><b>Open source, MIT</b><span>One AppKit file. No daemon, no kernel extension. Read every line.</span></div></div>
       </div>
       <div class="verify">
@@ -356,13 +356,13 @@
 
 <section id="why">
   <div class="wrap reveal">
-    <p class="eyebrow">The one that actually does it</p>
-    <h2 class="sec">Why other keep-awake apps can't do this</h2>
-    <p class="lead">Most keep-awake apps ride on macOS power assertions. Assertions stop the idle timer, but they can't override the hardware lid-close trigger, so a closed lid still sleeps the Mac. Sleepless flips the one setting that can.</p>
+    <p class="eyebrow">Different sleep paths, one verified profile</p>
+    <h2 class="sec">Why one assertion or flag is not the whole job</h2>
+    <p class="lead">macOS separates display sleep, idle system sleep, and the lid-close path. Sleepless combines the required kernel flag with fixed idle, disk, and network settings plus an app-owned power assertion.</p>
     <div class="steps">
       <div class="step glass"><span class="n">01</span><p>Power assertions (Caffeine, Theine, <code>caffeinate</code>) stop the idle timer, but not the lid-close trigger.</p></div>
       <div class="step glass"><span class="n">02</span><p>So a closed lid still sleeps the Mac, even with Amphetamine or KeepingYouAwake.</p></div>
-      <div class="step glass"><span class="n">03</span><p><code>pmset disablesleep</code> overrides lid-close sleep. Sleepless flips exactly that, reads it back, and adds safety nets.</p></div>
+      <div class="step glass"><span class="n">03</span><p>Sleepless snapshots first, applies and verifies the complete profile, then restores every affected value on OFF.</p></div>
     </div>
     <blockquote class="quote glass">“I will probably never support this option because <code>caffeinate</code> doesn't support this. KYA uses <code>caffeinate</code> under the hood.”<cite>KeepingYouAwake maintainer, issue #66</cite></blockquote>
   </div>
@@ -405,16 +405,17 @@
 <section id="how">
   <div class="wrap reveal">
     <p class="eyebrow">How it works</p>
-    <h2 class="sec">One setting, flipped safely</h2>
-    <p class="lead">Sleepless toggles <code>pmset disablesleep</code>, which flips the kernel's <code>SleepDisabled</code> flag, then reverts it at your battery floor, in Low Power Mode, or when the timer ends. A reboot also resets it. Because a GUI app can't type a password, the installer adds a tightly scoped sudoers rule that permits exactly two commands and nothing else.</p>
+    <h2 class="sec">Snapshot, apply, restore, verify</h2>
+    <p class="lead">Sleepless records the affected Battery, AC, and optional UPS values, applies a fixed awake profile and app-owned <code>caffeinate -ims</code>, then restores each saved value with its original power-source scope. The snapshot is deleted only after verification succeeds.</p>
     <div class="codeblock glass">
-      <div class="fname">/etc/sudoers.d/sleepless</div>
-      <pre>&lt;you&gt; ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1</pre>
+      <div class="fname">/etc/sudoers.d/sleepless-powerctl</div>
+      <pre>&lt;you&gt; ALL=(root) NOPASSWD: /Library/PrivilegedHelperTools/com.aboudjem.Sleepless.powerctl on,
+    /Library/PrivilegedHelperTools/com.aboudjem.Sleepless.powerctl off</pre>
     </div>
     <div class="grid2">
       <div class="tile glass"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg></div><h3>Can't be widened</h3><p>sudoers matches arguments literally with no wildcards, so any other command re-prompts for a password.</p></div>
-      <div class="tile glass"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><h3>No helper to hijack</h3><p>It calls Apple's /usr/bin/pmset directly with an argv array. No daemon, no shell, no helper script.</p></div>
-      <div class="tile glass"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div><h3>Always reversible</h3><p>A reboot resets the flag, the floor and timer turn it off, and uninstall.sh removes the grant and proves it.</p></div>
+      <div class="tile glass"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><h3>Fixed root-owned helper</h3><p>The installed helper is not user-writable and accepts only exact <code>on</code> and <code>off</code> actions—never caller-provided settings.</p></div>
+      <div class="tile glass"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div><h3>Retryable restoration</h3><p>A failed restore keeps the root-owned snapshot, so OFF or uninstall can retry instead of silently losing the previous values.</p></div>
       <div class="tile glass"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg></div><h3>Verifiable downloads</h3><p>Releases ship SHA-256 sums and a Sigstore build-provenance attestation. No Apple account needed to check.</p></div>
     </div>
     <p class="lead" style="margin-top:24px; font-size:16px">Full threat model and verification: <a href="https://github.com/Aboudjem/Sleepless/blob/main/SECURITY.md">SECURITY.md</a> and <a href="https://github.com/Aboudjem/Sleepless/blob/main/docs/AUDIT.md">AUDIT.md</a>.</p>
@@ -438,7 +439,7 @@
         </tbody>
       </table>
     </div>
-    <p class="fn">¹ Sleepless uses <code>pmset disablesleep</code>, the mechanism built for lid-close, and reads the flag back so the UI reflects reality; behavior on any keep-awake tool is hardware and macOS-version dependent. ² Amphetamine documents closed-display mode but is widely reported to fail on Apple Silicon when the power source changes (Amphetamine-Enhancer #28); the app itself is closed source. ³ KeepingYouAwake cannot keep the lid closed by design, since it wraps <code>caffeinate</code> (issue #66). ⁴ <code>caffeinate -i</code> runs on battery; <code>-s</code> is AC-only.</p>
+    <p class="fn">¹ Sleepless combines <code>pmset disablesleep</code>, fixed power settings, and app-owned <code>caffeinate -ims</code>; behavior on any keep-awake tool remains hardware and macOS-version dependent. ² Amphetamine documents closed-display mode but is widely reported to fail on Apple Silicon when the power source changes (Amphetamine-Enhancer #28); the app itself is closed source. ³ KeepingYouAwake cannot keep the lid closed by design, since it wraps <code>caffeinate</code> (issue #66). ⁴ <code>caffeinate -i</code> runs on battery; <code>-s</code> is AC-only.</p>
   </div>
 </section>
 
@@ -446,12 +447,12 @@
   <div class="wrap reveal">
     <p class="eyebrow">Questions</p>
     <h2 class="sec">FAQ</h2>
-    <details><summary>How do I keep my MacBook awake with the lid closed without a monitor?</summary><p>Install Sleepless, click the coffee cup in the menu bar, flip the switch on, and close the lid (the laptop screen, also called the flap). It keeps the Mac awake on battery with no external display, using <code>pmset disablesleep</code>. No dummy HDMI plug or clamshell adapter is needed.</p></details>
-    <details><summary>Why does my MacBook sleep when I close the lid even with Amphetamine or KeepingYouAwake?</summary><p>Those tools are built on macOS power assertions, which stop the idle timer but cannot override the hardware lid-close trigger. KeepingYouAwake wraps <code>caffeinate</code>, which its maintainer confirms cannot do lid-close. <code>pmset disablesleep</code>, which Sleepless uses, is a lower-level setting that can.</p></details>
-    <details><summary>Does pmset disablesleep still work on Apple Silicon (M1/M2/M3)?</summary><p>Yes. <code>pmset -a disablesleep 1</code> sets the kernel's <code>SleepDisabled</code> flag on Apple Silicon, confirmed firsthand on macOS 26.3, which keeps a MacBook awake with the lid closed on battery. Apple does not officially document the setting, so verify it with <code>pmset -g | grep SleepDisabled</code>. Most claims that it stopped working describe <code>caffeinate</code>, a different mechanism.</p></details>
-    <details><summary>Is it safe to run a MacBook with the lid closed? Will it overheat or drain the battery?</summary><p>It is safe for light, unattended work like downloads, syncs, or a hotspot. Heavy sustained load with the lid fully closed reduces airflow, so use judgement there. Sleepless turns itself off at the floor you set and in Low Power Mode, and the auto-off timer caps how long it stays on.</p></details>
-    <details><summary>Does Sleepless require sudo, a kernel extension, or a background daemon?</summary><p>It needs one tightly scoped <code>sudo</code> grant (two exact <code>pmset</code> commands, nothing else) so a GUI app can flip the setting without a password prompt. There is no kernel extension and no background daemon. The whole app is a single AppKit file.</p></details>
-    <details><summary>Can I run AI agents or long jobs overnight with the lid closed?</summary><p>Yes. Switch Sleepless on, set a battery floor, close the lid, and an agent run, build, render, or training job keeps going. Plug in for an all-nighter, or stay on battery with a floor and timer so it stops itself before the battery runs low.</p></details>
+    <details><summary>How do I keep my MacBook awake with the lid closed without a monitor?</summary><p>Install Sleepless, click the coffee cup, and flip the switch. It snapshots the affected settings, applies a fixed layered profile, and restores the snapshot on OFF. No dummy HDMI plug is required.</p></details>
+    <details><summary>Why does my MacBook sleep when I close the lid with a caffeinate-based app?</summary><p>Power assertions stop idle sleep but do not cover the lid-close trigger by themselves. Sleepless combines the undocumented <code>SleepDisabled</code> flag with fixed power settings and its own <code>caffeinate</code> assertion.</p></details>
+    <details><summary>Why does Sleepless use more than pmset disablesleep?</summary><p>One undocumented kernel flag is not an end-to-end guarantee for every long-running process. Sleepless applies and verifies a layered profile, then restores the exact previous Battery and AC values.</p></details>
+    <details><summary>Is it safe to run a MacBook with the lid closed? Will it overheat or drain the battery?</summary><p>Light unattended work is the intended use. Heavy sustained load with the lid fully closed can reduce cooling headroom, so monitor temperature and use judgement. The battery floor and timer reduce battery risk; they are not a thermal guarantee.</p></details>
+    <details><summary>Does Sleepless require sudo, a kernel extension, or a background daemon?</summary><p>It needs a tightly scoped <code>sudo</code> grant for two exact actions on a fixed root-owned helper. There is no kernel extension or background daemon.</p></details>
+    <details><summary>Can I run AI agents or long jobs with the lid closed?</summary><p>That is the intended use for the layered profile. Test a short run on your own hardware first, set a battery floor and timer, and remember that behavior can vary with the Mac model and macOS release.</p></details>
   </div>
 </section>
 

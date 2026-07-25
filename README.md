@@ -41,7 +41,7 @@
 </p>
 
 > [!NOTE]
-> A closed lid sleeps your Mac, and `caffeinate` apps (KeepingYouAwake and friends) can't change that, by design. Sleepless flips the one setting that can, `pmset disablesleep`, with safety nets so it is safe to forget.
+> Sleepless combines `pmset disablesleep` with a fixed awake profile and an app-owned `caffeinate` assertion. It snapshots the affected settings first, then restores and verifies them on OFF.
 
 ## Install
 
@@ -62,12 +62,14 @@ Then click the cup in the menu bar, flip the switch, and close the lid.
 | | | |
 |---|---|---|
 | ☕ | **One switch** | Click the menu-bar cup, flip the toggle. |
+| ↩️ | **Exact restore** | Saves the current Battery/AC values before ON and verifies them after OFF. |
+| 🧰 | **Full awake profile** | Uses `disablesleep` plus fixed sleep, disk, network, and `caffeinate -ims` settings. |
 | ⏲️ | **Auto-off timer** | 1h or 2h with a live countdown, then off. |
 | 🔋 | **Battery floor** | Auto-off at 5–50% on battery (default 15%). |
 | 🪫 | **Low Power Mode** | Steps aside when LPM is on, on battery. |
 | 🖥️ | **No dongle** | Lid closed, on battery. No monitor, no HDMI plug. |
 | 🚀 | **Launch at login** | Optional, off by default, always starts idle. |
-| 🪶 | **Tiny + native** | One AppKit file. No Dock icon, daemon, or kext. |
+| 🪶 | **Tiny + native** | Menu-bar AppKit app. No Dock icon, daemon, or kext. |
 
 **Menu-bar glyph:** empty cup = off · full cup = awake · full cup + dot = awake on battery (auto-off live).
 
@@ -82,7 +84,7 @@ Then click the cup in the menu bar, flip the switch, and close the lid.
 | Open source | ✅ MIT | ❌ App Store | ✅ MIT | Apple |
 | Cost | Free | Free | Free | Free |
 
-<sub>As of 2026-06. ¹ Uses `pmset disablesleep` and reads the flag back; behavior is hardware/macOS-version dependent. ² Documents closed-display mode but is widely reported to fail on Apple Silicon on power-source changes ([AE #28](https://github.com/x74353/Amphetamine-Enhancer/issues/28)); the app is closed source. ³ Can't do lid-closed by design, it wraps `caffeinate` ([#66](https://github.com/newmarcel/KeepingYouAwake/issues/66)). ⁴ `caffeinate -i` runs on battery; `-s` is AC-only.</sub>
+<sub>As of 2026-07. ¹ Uses `pmset disablesleep`, a full awake profile, and app-owned `caffeinate -ims`; behavior remains hardware/macOS-version dependent. ² Documents closed-display mode but is widely reported to fail on Apple Silicon on power-source changes ([AE #28](https://github.com/x74353/Amphetamine-Enhancer/issues/28)); the app is closed source. ³ Can't do lid-closed by design, it wraps `caffeinate` ([#66](https://github.com/newmarcel/KeepingYouAwake/issues/66)). ⁴ `caffeinate -i` runs on battery; `-s` is AC-only.</sub>
 
 ## Use it to
 
@@ -96,55 +98,58 @@ Then click the cup in the menu bar, flip the switch, and close the lid.
 
 ## How it works
 
-Sleepless toggles `pmset disablesleep` (the kernel's `SleepDisabled` flag), reads it back so the menu bar never lies, and reverts it at your battery floor, in Low Power Mode, when the timer ends, or on reboot. A GUI app can't type a password, so the installer adds a scoped sudoers rule for **exactly two commands**:
-
-```
-<you> ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1
-```
-
-- **Can't be widened.** sudoers matches arguments literally, no wildcards.
-- **Nothing to hijack.** No daemon, no helper script, no shell. It calls `/usr/bin/pmset` directly.
-- **Always reversible.** Reboot, the floor, the timer, or `./uninstall.sh` (which proves the grant is gone).
-
-Verify a download, no Apple account needed:
+When switched ON, Sleepless snapshots the affected Battery, AC, and optional UPS values, then applies:
 
 ```sh
-shasum -a 256 -c SHA256SUMS
-gh attestation verify Sleepless-*.zip -R Aboudjem/Sleepless
+pmset -a disablesleep 1 sleep 0 disksleep 0 displaysleep 10 \
+  powernap 0 tcpkeepalive 1 womp 1
+caffeinate -ims
 ```
 
-Full threat model, the App Store verdict, and the audit guide: [SECURITY.md](SECURITY.md) · [docs/AUDIT.md](docs/AUDIT.md).
+The profile deliberately omits `caffeinate -d`, so the display may still turn off normally. When switched OFF, it restores each saved value with the correct `pmset -b`, `-c`, or `-u` source flag. The snapshot is deleted only after verification succeeds.
+
+The installer copies a fixed helper to `/Library/PrivilegedHelperTools`, owned by `root:wheel`, and grants exactly:
+
+```text
+<you> ALL=(root) NOPASSWD: /Library/PrivilegedHelperTools/com.aboudjem.Sleepless.powerctl on, /Library/PrivilegedHelperTools/com.aboudjem.Sleepless.powerctl off
+```
+
+- **Fixed inputs.** The helper accepts no setting names or values from the caller.
+- **Exact restoration.** Failed restoration keeps the snapshot so it can be retried.
+- **No broad process kill.** Sleepless stops only the `caffeinate` process it owns.
+
+Full threat model: [SECURITY.md](SECURITY.md).
 
 ## FAQ
 
 <details>
-<summary><b>Does <code>pmset disablesleep</code> still work on Apple Silicon (M1/M2/M3)?</b></summary>
+<summary><b>Why use more than <code>pmset disablesleep 1</code>?</b></summary>
 
-Yes. `pmset -a disablesleep 1` sets the kernel's `SleepDisabled` flag on Apple Silicon, confirmed firsthand on macOS 26.3, which keeps the Mac awake with the lid closed on battery. Verify with `pmset -g | grep SleepDisabled` (it should read `1`). Claims that it "stopped working" usually describe `caffeinate` or caffeinate-based apps, a different mechanism.
+`disablesleep` sets the undocumented kernel flag needed for the lid-close path, but one flag is not an end-to-end guarantee for every long-running process. Sleepless also disables the affected idle timers, preserves the network-oriented settings, and owns a `caffeinate -ims` assertion. It verifies the complete profile after applying it.
 </details>
 
 <details>
 <summary><b>Why does my Mac sleep on lid close even with Amphetamine or KeepingYouAwake?</b></summary>
 
-Those use macOS power assertions, which stop the idle timer but can't override the hardware lid-close trigger. KeepingYouAwake wraps `caffeinate`, which can't do lid-closed ([#66](https://github.com/newmarcel/KeepingYouAwake/issues/66)). `pmset disablesleep`, which Sleepless uses, can.
+Those tools use macOS power assertions, which stop idle sleep but do not cover the lid-close trigger. KeepingYouAwake wraps `caffeinate`, which does not support lid-close by itself ([#66](https://github.com/newmarcel/KeepingYouAwake/issues/66)). Sleepless combines `disablesleep` for that path with its own assertions and fixed profile.
 </details>
 
 <details>
 <summary><b>Is it safe? Will it overheat or drain the battery?</b></summary>
 
-It is safe for light unattended work (downloads, syncs, a hotspot). Heavy sustained load with the lid fully shut reduces airflow, so use judgement. The battery floor, Low Power Mode auto-off, and the timer all stop it before it drains the Mac.
+Light unattended work such as downloads, syncs, and agent jobs is the intended use. Heavy sustained load with the lid fully shut can reduce cooling headroom, so monitor temperature and use judgement. The battery floor, Low Power Mode auto-off, and timer reduce battery risk; they are not a thermal guarantee.
 </details>
 
 <details>
 <summary><b>Does it need sudo, a kernel extension, or a daemon?</b></summary>
 
-One tightly scoped `sudo` grant (two exact `pmset` commands) so a GUI app can flip the setting without a prompt. No kernel extension, no daemon. The whole app is a single AppKit file.
+One tightly scoped `sudo` grant for the root-owned helper's exact `on` and `off` commands. No kernel extension or daemon.
 </details>
 
 <details>
 <summary><b>How do I stop it or remove it?</b></summary>
 
-Flip the switch off, or let the timer or battery floor do it, and normal sleep returns. A reboot also resets it. `./uninstall.sh` removes the app, login item, and the sudoers grant, then proves the grant is gone.
+Flip the switch off, or let the timer or battery floor do it. Sleepless restores and verifies the captured profile. `./uninstall.sh` restores first, then removes the app, helper, login item, and sudoers grant.
 </details>
 
 <details>

@@ -43,7 +43,7 @@
 </p>
 
 > [!NOTE]
-> 合上盖子会让 Mac 睡眠，基于 `caffeinate` 的应用（KeepingYouAwake 之类）从设计上就改变不了这件事。Sleepless 切换的是唯一能做到的那个设置，`pmset disablesleep`，再配上安全机制，所以你大可放心地把它忘掉。
+> Sleepless 将 `pmset disablesleep`、固定唤醒配置和 App 自有的 `caffeinate` 断言组合使用；开启前保存受影响的设置，关闭后恢复并验证。
 
 ## 安装
 
@@ -64,12 +64,14 @@ brew install --cask aboudjem/tap/sleepless
 | | | |
 |---|---|---|
 | ☕ | **一个开关** | 点击菜单栏里的咖啡杯，拨动开关。 |
+| ↩️ | **精确恢复** | 开启前保存 Battery/AC 当前值，关闭后逐项恢复并验证。 |
+| 🧰 | **完整唤醒配置** | 同时使用 `disablesleep`、系统/磁盘/网络设置和 `caffeinate -ims`。 |
 | ⏲️ | **自动关闭定时器** | 1 小时或 2 小时，带实时倒计时，到点关闭。 |
 | 🔋 | **电量下限** | 电池供电时在 5–50% 自动关闭（默认 15%）。 |
 | 🪫 | **Low Power Mode** | 电池供电下若 LPM 开启，自动让位。 |
 | 🖥️ | **无需转接** | 合盖、电池供电即可。不用显示器，不用 HDMI 插头。 |
 | 🚀 | **登录时启动** | 可选，默认关闭，始终以关闭状态启动。 |
-| 🪶 | **小巧且原生** | 一个 AppKit 文件。无 Dock 图标、守护进程或 kext。 |
+| 🪶 | **小巧且原生** | AppKit 菜单栏应用。无 Dock 图标、守护进程或 kext。 |
 
 **菜单栏图标：** 空杯 = 关闭 · 满杯 = 唤醒 · 满杯加一个点 = 电池供电下唤醒（自动关闭生效中）。
 
@@ -84,7 +86,7 @@ brew install --cask aboudjem/tap/sleepless
 | 开源 | ✅ MIT | ❌ App Store | ✅ MIT | Apple |
 | 价格 | 免费 | 免费 | 免费 | 免费 |
 
-<sub>数据截至 2026-06。¹ 使用 `pmset disablesleep` 并把标志读回来；具体表现取决于硬件和 macOS 版本。² 有记载支持合盖显示模式，但被普遍反映会在电源切换时于 Apple Silicon 上失效（[AE #28](https://github.com/x74353/Amphetamine-Enhancer/issues/28)）；应用本身闭源。³ 从设计上就做不到合盖唤醒，因为它封装的是 `caffeinate`（[#66](https://github.com/newmarcel/KeepingYouAwake/issues/66)）。⁴ `caffeinate -i` 可在电池供电下运行；`-s` 仅在接通电源时有效。</sub>
+<sub>数据截至 2026-07。¹ 组合使用 `pmset disablesleep`、完整唤醒配置与应用自己持有的 `caffeinate -ims`；具体表现仍取决于硬件和 macOS 版本。² 有记载支持合盖显示模式，但被普遍反映会在电源切换时于 Apple Silicon 上失效（[AE #28](https://github.com/x74353/Amphetamine-Enhancer/issues/28)）；应用本身闭源。³ 从设计上就做不到合盖唤醒，因为它封装的是 `caffeinate`（[#66](https://github.com/newmarcel/KeepingYouAwake/issues/66)）。⁴ `caffeinate -i` 可在电池供电下运行；`-s` 仅在接通电源时有效。</sub>
 
 ## 用它来……
 
@@ -98,55 +100,58 @@ brew install --cask aboudjem/tap/sleepless
 
 ## 工作原理
 
-Sleepless 切换 `pmset disablesleep`（内核的 `SleepDisabled` 标志），把它读回来让菜单栏绝不撒谎，并在到达你的电量下限、进入 Low Power Mode、定时器结束或重启时把它还原。GUI 应用没法输入密码，所以安装程序会加一条范围严格限定的 sudoers 规则，**只允许两条命令**：
-
-```
-<you> ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1
-```
-
-- **无法被放宽。** sudoers 按字面匹配参数，没有通配符。
-- **没有可劫持的东西。** 没有守护进程、辅助脚本或 shell。它直接调用 `/usr/bin/pmset`。
-- **始终可逆。** 重启、电量下限、定时器，或 `./uninstall.sh`（它会证明授权已经清除）。
-
-验证一个下载，无需 Apple 账户：
+开启时，Sleepless 先保存会被修改的 Battery、AC 和可选 UPS 参数，然后执行：
 
 ```sh
-shasum -a 256 -c SHA256SUMS
-gh attestation verify Sleepless-*.zip -R Aboudjem/Sleepless
+pmset -a disablesleep 1 sleep 0 disksleep 0 displaysleep 10 \
+  powernap 0 tcpkeepalive 1 womp 1
+caffeinate -ims
 ```
 
-完整威胁模型、为何无法上架 App Store，以及审计指南：[SECURITY.md](SECURITY.md) · [docs/AUDIT.md](docs/AUDIT.md)。
+该配置刻意没有使用 `caffeinate -d`，因此显示器仍可正常息屏。关闭时，按 Battery/AC 分别恢复每个旧值；只有验证全部成功后才删除快照。
+
+安装程序会把固定 helper 以 `root:wheel` 安装到 `/Library/PrivilegedHelperTools`，sudoers 只允许：
+
+```text
+<you> ALL=(root) NOPASSWD: /Library/PrivilegedHelperTools/com.aboudjem.Sleepless.powerctl on, /Library/PrivilegedHelperTools/com.aboudjem.Sleepless.powerctl off
+```
+
+- **输入固定。** helper 不接受调用者传入任何设置名或设置值。
+- **恢复可重试。** 恢复失败会保留快照，不会假装成功。
+- **不误杀进程。** 只停止 Sleepless 自己启动的 `caffeinate`。
+
+完整威胁模型见 [SECURITY.md](SECURITY.md)。
 
 ## 常见问题
 
 <details>
-<summary><b><code>pmset disablesleep</code> 在 Apple Silicon（M1/M2/M3）上还有效吗？</b></summary>
+<summary><b>为什么不只使用 <code>pmset disablesleep 1</code>？</b></summary>
 
-有效。`pmset -a disablesleep 1` 会在 Apple Silicon 上设置内核的 `SleepDisabled` 标志，已在 macOS 26.3 上第一手确认，能让 Mac 在合盖、电池供电下保持唤醒。用 `pmset -g | grep SleepDisabled` 验证（应读作 `1`）。说它“不再有效”的说法，通常描述的是 `caffeinate` 或基于 caffeinate 的应用，那是另一套机制。
+`disablesleep` 会设置合盖路径所需的未公开内核标志，但一个标志并不是所有长任务端到端连续的保证。Sleepless 还会关闭受影响的空闲计时器、保留网络相关设置，并持有自己的 `caffeinate -ims` 断言；应用后会验证完整配置。
 </details>
 
 <details>
 <summary><b>为什么装了 Amphetamine 或 KeepingYouAwake，合盖时 Mac 还是会睡眠？</b></summary>
 
-那些工具用的是 macOS 电源断言，它能停掉空闲计时器，却无法覆盖硬件层面的合盖触发。KeepingYouAwake 封装的是 `caffeinate`，做不到合盖唤醒（[#66](https://github.com/newmarcel/KeepingYouAwake/issues/66)）。而 Sleepless 使用的 `pmset disablesleep` 可以。
+那些工具使用 macOS 电源断言，可以阻止空闲睡眠，却不能单独覆盖合盖触发路径。KeepingYouAwake 封装的是 `caffeinate`，本身不支持合盖运行（[#66](https://github.com/newmarcel/KeepingYouAwake/issues/66)）。Sleepless 将用于合盖路径的 `disablesleep`、自身断言和固定配置组合起来。
 </details>
 
 <details>
 <summary><b>合盖运行安全吗？会过热或耗光电池吗？</b></summary>
 
-对于下载、同步、共享热点这类轻量、无人看管的任务来说是安全的。完全合盖下长时间高负载会限制散热气流，所以请自己掂量。电量下限、Low Power Mode 自动关闭和定时器都会在 Mac 电量见底之前把它停下来。
+下载、同步和 agent 任务等轻量无人值守工作是主要使用场景。完全合盖下持续高负载可能减少散热余量，请关注温度并自行判断。电量下限、Low Power Mode 自动关闭和定时器只能降低电池风险，不是温控保证。
 </details>
 
 <details>
 <summary><b>它需要 sudo、内核扩展或后台守护进程吗？</b></summary>
 
-它需要一条范围严格限定的 `sudo` 授权（两条精确的 `pmset` 命令），这样 GUI 应用才能在不弹密码提示的情况下切换设置。没有内核扩展，也没有守护进程。整个应用就是一个 AppKit 文件。
+它需要一条范围严格限定的 `sudo` 授权，只允许 root-owned helper 的精确 `on` 和 `off` 命令。没有内核扩展或守护进程。
 </details>
 
 <details>
 <summary><b>怎样停止它或移除它？</b></summary>
 
-把开关关掉，或者让定时器或电量下限替你关掉它，正常睡眠就会恢复。重启同样会把它重置。`./uninstall.sh` 会移除应用、登录项和 sudoers 授权，然后证明授权已经清除。
+把开关关掉，或者让定时器或电量下限替你关掉它；Sleepless 会恢复并验证保存的配置。`./uninstall.sh` 会先恢复，再移除应用、helper、登录项和 sudoers 授权。
 </details>
 
 <details>

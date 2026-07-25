@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Save the affected Battery, AC, and optional UPS settings before enabling the
+  lid-closed awake profile, then restore and verify the exact snapshot on OFF.
+- Apply a complete awake profile (`disablesleep`, idle/disk/display
+  timers, Power Nap, TCP keepalive, Wake-on-LAN) plus an app-owned
+  `caffeinate -ims` process.
+- Install a root-owned, fixed-input `on`/`off` helper instead of granting broad
+  passwordless access to dynamic `pmset` restoration commands.
+- Remove the legacy direct-`pmset` sudoers grant after the replacement helper
+  and exact-argument grant install successfully.
+- Stop an older running app during upgrade and normalize its legacy
+  `SleepDisabled` state before creating the first recoverable snapshot.
+- Add integration tests for asymmetric Battery/AC round trips, repeated ON,
+  pre-existing `SleepDisabled`, and failed enable/restore retries.
+
+### Changed
+- Restore the saved profile before timer, battery-floor, Low Power Mode, Quit,
+  or uninstall transitions complete.
+
+### Fixed
+- Leave every user power setting untouched when OFF is requested without a
+  Sleepless-managed snapshot.
+
 ## [1.2.7] - 2026-06-03
 
 ### Changed
