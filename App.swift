@@ -31,7 +31,7 @@
 //      turns itself off. Same shape as the battery floor, evaluated on the same tick.
 //
 // Build (mirrors Nexus.app): Command Line Tools `swiftc`, NO Xcode project.
-//   swiftc -O -parse-as-library -target arm64-apple-macos26.0 -framework AppKit \
+//   swiftc -O -parse-as-library -target arm64-apple-macos13.0 -framework AppKit \
 //          -framework ServiceManagement
 //   File MUST be named App.swift and compiled -parse-as-library so the
 //   @main enum + @MainActor static main() entry is Swift-6 isolation-safe.

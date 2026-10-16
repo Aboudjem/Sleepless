@@ -16,9 +16,10 @@ set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_NAME="Sleepless"
-# macOS arm64 target. Sleepless is verified on macOS 26 (Tahoe) / Apple Silicon.
-# Override with TARGET=... (e.g. CI on a runner whose SDK predates macOS 26).
-TARGET="${TARGET:-arm64-apple-macos26.0}"
+# macOS arm64 target. macOS 13 is the floor (SMAppService.mainApp); this matches the
+# deployment target CI and release builds already use. Primary testing is on macOS 26
+# (Tahoe) / Apple Silicon. Override with TARGET=... if needed.
+TARGET="${TARGET:-arm64-apple-macos13.0}"
 
 # Destination: first non-flag arg, else $DEST, else ./build
 DEST="${DEST:-}"

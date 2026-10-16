@@ -36,14 +36,14 @@ what it writes). `./uninstall.sh` backs it all out and proves the grant is revok
   hand-drawn glyphs, no bundled frameworks.
 - **Zero warnings.** The build must compile clean:
   ```sh
-  swiftc -O -parse-as-library -target arm64-apple-macos26.0 -framework AppKit App.swift -o /tmp/Sleepless
+  swiftc -O -parse-as-library -target arm64-apple-macos13.0 -framework AppKit App.swift -o /tmp/Sleepless
   ```
   CI runs the equivalent compile on every push/PR.
 - **Match the surrounding style.** Read `App.swift` first — keep comment density, naming, and
   the "read back the real system state, never assume" discipline.
 - **No personal paths or usernames** in scripts, the sudoers template, or install commands.
   The grant is generated from `$(id -un)` at install time.
-- **Verify on a real machine.** Sleepless is verified on macOS 26 (Tahoe) / Apple Silicon.
+- **Verify on a real machine.** Sleepless targets macOS 13+ and is primarily verified on macOS 26 (Tahoe) / Apple Silicon.
   If you test on other versions/hardware, say so in the PR.
 
 ## Pull requests
