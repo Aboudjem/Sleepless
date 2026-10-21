@@ -40,6 +40,9 @@ jobs:
           swiftc --version
           echo "SDK: $(xcrun --sdk macosx --show-sdk-version 2>/dev/null || echo n/a)"
 
+      - name: Automated safety and concurrency tests
+        run: ./tests/run.sh --unit-only
+
       - name: Build Sleepless.app
         run: |
           set -euo pipefail

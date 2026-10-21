@@ -10,17 +10,19 @@ machine.
 
 ## Read it in about ten minutes
 
-The whole app is one file. To satisfy yourself it does what it claims and nothing else:
+The interface and safety engine are separate. To review the relevant boundaries:
 
 | Read | What you are checking |
 |---|---|
-| [`App.swift`](../App.swift) | The only thing it runs as root is `sudo -n /usr/bin/pmset -a disablesleep 0/1` (`setDisableSleep`). No network calls, no file writes outside `UserDefaults`, no shell strings. |
+| [`App.swift`](../App.swift) | Native UI, power notifications, session identity, renewal and normal-quit cleanup. |
+| [`SafetyCore.swift`](../SafetyCore.swift) | Ownership, short leases, transaction locking and failure-preserving recovery. |
+| [`MacSafetyEnvironment.swift`](../MacSafetyEnvironment.swift) / [`SafetyTool.swift`](../SafetyTool.swift) | Direct argument-array pmset calls, permission/health checks, state files and per-user LaunchAgent lifecycle. |
 | [`sleepless.sudoers.template`](../sleepless.sudoers.template) / [`grant.sh`](../grant.sh) | The passwordless grant permits exactly those two fully-specified commands, no wildcards, installed `root:wheel 0440`. |
 | [`build.sh`](../build.sh) | `swiftc` + a hand-assembled, ad-hoc-signed bundle. No downloaded blobs, no install-time scripts baked into the binary. |
-| [`uninstall.sh`](../uninstall.sh) | Removes the app, the login item, and the sudoers drop-in, then proves `sudo -n pmset …` prompts again. |
+| [`uninstall.sh`](../uninstall.sh) | Fences new arms and verifies normal sleep before removing the watchdog, app and scoped grant. Failed restoration aborts removal. |
 
 The single privileged file on your system is `/etc/sudoers.d/sleepless-disablesleep`. Read
-it, and `sudo rm` it any time to revoke everything.
+it before granting access. Use the uninstaller to restore owned state before revoking the grant; removing permission while ON can block recovery.
 
 ## Verify a release you downloaded (did not build)
 
@@ -61,7 +63,8 @@ cd Sleepless && git checkout v<version>
 
 # Rebuild the executable with the release's deployment target.
 swiftc -O -parse-as-library -target arm64-apple-macos13.0 \
-  -framework AppKit -framework ServiceManagement App.swift -o /tmp/Sleepless-rebuilt
+  -framework AppKit -framework ServiceManagement -framework IOKit \
+  App.swift SafetyCore.swift MacSafetyEnvironment.swift -o /tmp/Sleepless-rebuilt
 
 # Unzip the release and compare the Mach-O inside the bundle.
 ditto -x -k Sleepless-<version>.zip /tmp/rel

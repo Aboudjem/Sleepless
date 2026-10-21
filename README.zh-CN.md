@@ -8,6 +8,9 @@
   <a href="README.de.md">Deutsch</a>
 </p>
 
+> **Safety update (English documentation):** This branch adds default-on power-disconnection protection, cleanup on quit and an independent recovery watchdog. Setup and complete removal have changed. See the [English README](README.md#sleep-recovery) and [deployment guide](docs/WATCHDOG-SAFETY.md); translations below describe the earlier release until updated.
+
+
 > 本翻译由社区或机器生成，可能落后于英文版 README。请以英文版本为准。请参阅 [English README](README.md)。
 
 <p align="center">

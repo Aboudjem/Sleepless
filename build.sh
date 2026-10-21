@@ -11,7 +11,7 @@
 #   ./build.sh --regen-icon         # re-render the .icns from make-icon.swift first
 #
 # It NEVER touches sudo, sleep settings, or the menu bar. Use install.sh for the
-# passwordless grant + login item.
+# passwordless grant + watchdog.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -56,27 +56,36 @@ fi
 # 2. Compile the executable.
 echo "==> Compiling App.swift"
 BIN_TMP="$(mktemp -d)"
-swiftc -O -parse-as-library -target "$TARGET" -framework AppKit -framework ServiceManagement \
-  "$REPO/App.swift" -o "$BIN_TMP/$APP_NAME"
+trap 'rm -rf "$BIN_TMP"' EXIT
+mkdir -p "$REPO/build/ModuleCache"
+CACHE="$REPO/build/ModuleCache"
+swiftc -O -warnings-as-errors -module-cache-path "$CACHE" -parse-as-library -target "$TARGET" -framework AppKit -framework ServiceManagement -framework IOKit \
+  "$REPO/App.swift" "$REPO/SafetyCore.swift" "$REPO/MacSafetyEnvironment.swift" -o "$BIN_TMP/$APP_NAME"
+swiftc -O -warnings-as-errors -module-cache-path "$CACHE" -parse-as-library -target "$TARGET" \
+  "$REPO/SafetyCore.swift" "$REPO/MacSafetyEnvironment.swift" "$REPO/SafetyTool.swift" -o "$BIN_TMP/SleeplessSafety"
 
 # 3. Assemble the bundle: Contents/{Info.plist, MacOS/<exe>, Resources/<name>.icns}
 echo "==> Assembling bundle"
 rm -rf "$APP"
 mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Resources"
 cp "$REPO/Info.plist" "$CONTENTS/Info.plist"
+MINIMUM="${TARGET##*macos}"
+/usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion $MINIMUM" "$CONTENTS/Info.plist"
 cp "$BIN_TMP/$APP_NAME" "$CONTENTS/MacOS/$APP_NAME"
 cp "$ICNS" "$CONTENTS/Resources/$APP_NAME.icns"
 chmod +x "$CONTENTS/MacOS/$APP_NAME"
 # Ship the grant + uninstall scripts inside the bundle so Homebrew-cask users (who get
 # only the .app) can run the one-time passwordless grant and a clean uninstall.
-cp "$REPO/grant.sh" "$REPO/uninstall.sh" "$CONTENTS/Resources/"
-chmod +x "$CONTENTS/Resources/grant.sh" "$CONTENTS/Resources/uninstall.sh"
+cp "$REPO/grant.sh" "$REPO/uninstall.sh" "$REPO/watchdog-agent.sh" "$REPO/LICENSE" "$CONTENTS/Resources/"
+cp "$BIN_TMP/SleeplessSafety" "$CONTENTS/Resources/"
+codesign --force --sign - "$CONTENTS/Resources/SleeplessSafety"
+chmod +x "$CONTENTS/Resources/grant.sh" "$CONTENTS/Resources/uninstall.sh" "$CONTENTS/Resources/watchdog-agent.sh"
 rm -rf "$BIN_TMP"
 
 # 4. Ad-hoc sign (no Apple Developer ID needed; trust comes from building it yourself).
 echo "==> Ad-hoc signing"
 codesign --force --deep --sign - "$APP"
-codesign --verify --verbose=1 "$APP" 2>&1 | sed 's/^/    /' || true
+codesign --verify --strict --verbose=1 "$APP"
 
 echo ""
 echo "✅ Built $APP"

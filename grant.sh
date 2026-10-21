@@ -22,37 +22,36 @@ if [ -z "$USER_NAME" ] || [ "$USER_NAME" = "root" ]; then
   exit 1
 fi
 
-# Run privileged steps with sudo normally, but directly when we are ALREADY root (e.g. the
-# app installs this via one native macOS auth sheet, so there is no Terminal + no sudo prompt).
-SUDO="sudo"
-[ "$(id -u)" -eq 0 ] && SUDO=""
-
-# Source of truth for the grant line: the repo template if present, else the identical
-# inline string (when this script ships inside the .app bundle, no template is alongside).
-TEMPLATE="$SCRIPT_DIR/sleepless.sudoers.template"
-if [ -f "$TEMPLATE" ]; then
-  GRANT="$(sed "s/__USER__/$USER_NAME/" "$TEMPLATE")"
-else
-  GRANT="$USER_NAME ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1"
+if ! [[ "$USER_NAME" =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$ ]]; then
+  echo 'error: invalid account name.' >&2; exit 1
 fi
 
-echo "Sleepless will install this passwordless grant at $SUDOERS_DST (root:wheel, 0440):"
-echo ""
+GRANT="$USER_NAME ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1"
+echo "Sleepless will install this passwordless grant (root:wheel, 0440):"
 echo "    $GRANT"
-echo ""
-echo "It permits ONLY turning lid-close sleep on (1) or off (0). Nothing else."
 if [ "${1:-}" != "--yes" ] && [ "${1:-}" != "-y" ]; then
   read -r -p "Continue? [y/N] " reply
   case "$reply" in [yY]*) ;; *) echo "Aborted."; exit 1 ;; esac
 fi
 
-TMP="$(mktemp)"
-printf '%s\n' "$GRANT" > "$TMP"
-if ! $SUDO visudo -cf "$TMP" >/dev/null; then
-  echo "error: generated sudoers failed validation; not installing." >&2
-  rm -f "$TMP"; exit 1
+# A fixed installer body preserves the native password/Touch ID sheet when the operator
+# has no interactive Terminal. Only the validated username varies. Never elevate a
+# bundled script, an editable template or a user-created temporary file.
+BODY="$(cat <<INSTALL_BODY
+set -eu
+t=\$(/usr/bin/mktemp /private/tmp/sleepless-grant.XXXXXX)
+trap '/bin/rm -f "\$t"' EXIT
+/usr/bin/printf '%s\\n' '$GRANT' > "\$t"
+/usr/sbin/visudo -cf "\$t"
+/usr/bin/install -m 0440 -o root -g wheel "\$t" /etc/sudoers.d/sleepless-disablesleep
+/usr/sbin/visudo -c
+INSTALL_BODY
+)"
+if [ "$(id -u)" -eq 0 ]; then
+  /bin/sh -c "$BODY"
+else
+  ESCAPED="${BODY//\\/\\\\}"
+  ESCAPED="${ESCAPED//\"/\\\"}"
+  /usr/bin/osascript -e "do shell script \"$ESCAPED\" with administrator privileges"
 fi
-$SUDO install -m 0440 -o root -g wheel "$TMP" "$SUDOERS_DST"
-rm -f "$TMP"
-$SUDO visudo -c >/dev/null && echo "✅ grant installed and sudoers parses cleanly ($SUDOERS_DST)."
-echo "   Toggle Sleepless from the menu bar; it will no longer need a password."
+echo 'Grant installed. Keep-awake still requires a healthy independent watchdog.'
