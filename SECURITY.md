@@ -55,9 +55,9 @@ Consequences you can rely on:
   or any other argument vector **do not match** the rule and will demand a password. The
   grant cannot be widened by appending flags.
 - Sleepless calls `sudo` with an **argv array**, not a shell string
-  (`Process.arguments` in `App.swift`), so there is no `/bin/sh -c`, no command
+  (`posix_spawn` in `MacSafetyEnvironment.swift`), so there is no `/bin/sh -c`, no command
   substitution, and no word-splitting surface inside the app.
-- There is **no helper script**. The classic sudoers footgun is a *user-writable* script
+- No user-writable helper is authorized to run as root. The classic sudoers footgun is a *user-writable* script
   that root executes — rewrite it, get root. Sleepless points the rule directly at Apple's
   `/usr/bin/pmset`, and the sudoers file itself is `root:wheel 0440` (you cannot modify it
   without `sudo`). Both mitigations are exactly what the literature prescribes.
@@ -80,8 +80,7 @@ for Sleepless to leave your Mac permanently unable to sleep. Verify it yourself:
 reboot, then `pmset -g | grep SleepDisabled` should read `0`.
 
 Sleepless adds a second belt-and-suspenders: a **battery-floor auto-off** (default 15%)
-that flips the flag back to `0` while the Mac is awake and discharging, so a forgotten
-"on" state can't drain the battery to empty.
+that flips the flag back to `0` while the Mac is awake and discharging, to reduce the risk of a forgotten ON state. These checks require usable sleep permissions and do not guarantee thermal or battery safety.
 
 ## Code signing, notarization, and Gatekeeper
 
@@ -128,10 +127,7 @@ scan) is in **[docs/AUDIT.md](docs/AUDIT.md)**.
 
 ## Completely removing the privilege
 
-`./uninstall.sh` restores normal sleep, removes the app and login item, deletes the
-sudoers drop-in, and then **proves** revocation by showing that `sudo -n pmset …` prompts
-for a password again. The single file to audit or delete by hand is
-`/etc/sudoers.d/sleepless-disablesleep`.
+`./uninstall.sh` fences new keep-awake requests, restores owned state and verifies normal sleep before removing the watchdog, app, login item and `/etc/sudoers.d/sleepless-disablesleep`. Failed restoration stops removal and retains recovery. It does not execute a sleep-changing command merely to test privilege revocation. Any broader sudo rights granted outside Sleepless remain outside its control.
 
 ## Primary sources
 
@@ -143,3 +139,12 @@ for a password again. The single file to audit or delete by hand is
 - Living without notarization (ad-hoc + quarantine behavior): https://eclecticlight.co/2024/10/01/living-without-notarization/
 - App Store Review Guidelines (§2.4.5 root escalation / sandbox / self-contained): https://developer.apple.com/app-store/review/guidelines/
 - GitHub artifact attestations (build provenance, SLSA): https://docs.github.com/en/actions/security-guides/using-artifact-attestations-to-establish-provenance-for-builds
+
+
+## Ownership and independent recovery
+
+The watchdog safety branch adds a 45-second, boot-scoped ownership lease and an independent per-user LaunchAgent. Missing permissions or watchdog health blocks arming. The helper refuses pre-existing unowned sleep prevention, serializes its own operations, checks OFF read-back and retains the recovery record on failed restoration. Upgrade/removal first fences new arms and verifies normal sleep; a failed clear must leave recovery and the grant intact.
+
+This remains a global macOS Boolean: another tool writing ON during a Sleepless-owned session is indistinguishable from the existing ON value. Do not combine competing sleep-setting tools or concurrent logged-in keep-awake sessions. A user agent also does not provide recovery outside its login session. Revoked permission can prevent recovery entirely until repaired. There is no new privileged daemon or broad sudo permission; the agent uses the same two exact pmset commands. The native GUI authorization uses a fixed installer body, rather than executing user-writable bundled code as root.
+
+See [WATCHDOG-SAFETY.md](docs/WATCHDOG-SAFETY.md) for the full safety boundary, supervised development tests, everyday-Mac acceptance and complete uninstall process. Live development-machine recovery tests passed with explicit approval; actual sleep was not demonstrated while essential Screen Sharing asserted PreventSystemSleep. A user also confirmed unplug and force-quit recovery on macOS 26.6.2; this does not prove actual physical sleep or all permission/hardware combinations. Passing mocked tests alone is not evidence of actual sleep recovery.

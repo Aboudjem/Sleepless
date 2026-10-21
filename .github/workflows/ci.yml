@@ -28,7 +28,7 @@ jobs:
           # Local + release builds target arm64-apple-macos26.0. CI compiles against the
           # runner's SDK (which may predate macOS 26) purely as a clean-compile smoke test,
           # so it does not force the 26.0 deployment target here.
-          swiftc -O -parse-as-library -framework AppKit App.swift -o /tmp/Sleepless 2> build.log \
+          swiftc -O -warnings-as-errors -parse-as-library -framework AppKit -framework ServiceManagement -framework IOKit App.swift SafetyCore.swift MacSafetyEnvironment.swift -o /tmp/Sleepless 2> build.log \
             || { echo "::group::swiftc output"; cat build.log; echo "::endgroup::"; exit 1; }
           cat build.log
           if grep -q "warning:" build.log; then
@@ -36,6 +36,9 @@ jobs:
             exit 1
           fi
           file /tmp/Sleepless
+
+      - name: Automated safety and concurrency tests
+        run: ./tests/run.sh --unit-only
 
       - name: Assemble app bundle
         run: |

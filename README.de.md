@@ -8,6 +8,9 @@
   <b>Deutsch</b>
 </p>
 
+> **Safety update (English documentation):** This branch adds default-on power-disconnection protection, cleanup on quit and an independent recovery watchdog. Setup and complete removal have changed. See the [English README](README.md#sleep-recovery) and [deployment guide](docs/WATCHDOG-SAFETY.md); translations below describe the earlier release until updated.
+
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/hero-dark.gif">

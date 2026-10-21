@@ -28,7 +28,7 @@ open build/Sleepless.app
 ```
 
 `./install.sh` additionally installs the passwordless grant + login item (it prints exactly
-what it writes). `./uninstall.sh` backs it all out and proves the grant is revoked.
+what it writes). `./uninstall.sh` verifies normal sleep before removing recovery and the scoped grant. Failed restoration aborts removal; see [the safety guide](docs/WATCHDOG-SAFETY.md).
 
 ## Coding guidelines
 
@@ -36,7 +36,9 @@ what it writes). `./uninstall.sh` backs it all out and proves the grant is revok
   hand-drawn glyphs, no bundled frameworks.
 - **Zero warnings.** The build must compile clean:
   ```sh
-  swiftc -O -parse-as-library -target arm64-apple-macos26.0 -framework AppKit App.swift -o /tmp/Sleepless
+  ./build.sh
+  ./tests/run.sh          # desktop: includes read-only native checks
+  ./tests/run.sh --unit-only  # headless CI: safety + lifecycle checks
   ```
   CI runs the equivalent compile on every push/PR.
 - **Match the surrounding style.** Read `App.swift` first — keep comment density, naming, and

@@ -20,8 +20,8 @@
 // FULL cup means it is being kept awake (caffeinated), and a full cup with a small
 // dot means it is awake on battery with the auto-off safety net live.
 //
-// Three small, fail-safe features layer on top, none of which adds a daemon or
-// persists OS state (so "reboot resets it" still holds):
+// Safety nets include an independent per-user watchdog and a 45-second ownership lease.
+// The watchdog never clears unowned sleep prevention. Reboot still resets the OS flag.
 //   1. Auto-off timer (1h / 2h) — a one-shot in-memory Timer that flips sleep back
 //      on when it fires. Dies on quit; nothing survives a reboot.
 //   2. Launch at login (SMAppService.mainApp) — OFF by default. The app always
@@ -30,13 +30,12 @@
 //   3. Low-Power-Mode auto-off — on battery, if Low Power Mode is on, Sleepless
 //      turns itself off. Same shape as the battery floor, evaluated on the same tick.
 //
-// Build (mirrors Nexus.app): Command Line Tools `swiftc`, NO Xcode project.
-//   swiftc -O -parse-as-library -target arm64-apple-macos26.0 -framework AppKit \
-//          -framework ServiceManagement
+// Build: ./build.sh (Command Line Tools; no Xcode project).
 //   File MUST be named App.swift and compiled -parse-as-library so the
 //   @main enum + @MainActor static main() entry is Swift-6 isolation-safe.
 import AppKit
 import ServiceManagement
+import IOKit.ps
 
 // MARK: - Tunables
 private let pollInterval: TimeInterval = 60
@@ -159,6 +158,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var clickMonitor: Any?
     private var batteryFloorPercent = floorDefault
     private var isOn = false
+    private let sessionID = UUID().uuidString
+    private var ownsState = false
+    private var foreignState = false
+    private var safetyMessage: String?
+    private var recoveryPending = false
+    private var leaseTimer: Timer?
+    private var powerSource: CFRunLoopSource?
+    private var powerPolicy = PowerRemovalPolicy()
+    private var stopOnPowerRemoval = true
+    private var powerSwitch: NSSwitch!
     private var userForcedOn = false   // user deliberately turned it on; honor over the Low Power Mode auto-off (the hard battery floor still wins)
 
     // Auto-off timer (in-memory; dies on quit, never survives a reboot)
@@ -168,11 +177,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var timerEndDate: Date?
 
     private let popoverWidth: CGFloat = 320
-    private let popoverHeight: CGFloat = 432
+    private let popoverHeight: CGFloat = 490
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         batteryFloorPercent = min(max((UserDefaults.standard.object(forKey: floorKey) as? Int) ?? floorDefault, floorMin), floorMax)
+        stopOnPowerRemoval = (UserDefaults.standard.object(forKey: "stopOnPowerRemoval") as? Bool) ?? true
+        observePowerSources()
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
             button.image = offGlyph
@@ -184,7 +195,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         popover.contentSize = NSSize(width: popoverWidth, height: popoverHeight)
         popover.contentViewController = makeContentController()
 
-        refresh()   // reflect TRUE system state on launch (never a stale assumption)
+        refresh()   // never adopt existing global sleep prevention
+        let renewal = Timer(timeInterval: 10, target: self,
+                            selector: #selector(safetyTick), userInfo: nil, repeats: true)
+        leaseTimer = renewal
+        RunLoop.main.add(renewal, forMode: .common)
         timer = Timer.scheduledTimer(timeInterval: pollInterval, target: self,
                                      selector: #selector(poll), userInfo: nil, repeats: true)
     }
@@ -305,13 +320,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         loginSwitch.frame = NSRect(x: contentW - ci - swW, y: ci + (22 - swH) / 2, width: swW, height: swH)
         g4.addSubview(loginSwitch)
 
+        let g5y = g4y + g4h + 12
+        let g5 = makeCard(NSRect(x: pad, y: g5y, width: contentW, height: 46))
+        let powerLabel = makeLabel("Turn off when unplugged", font: .systemFont(ofSize: 13), color: .labelColor)
+        powerLabel.frame = NSRect(x: ci, y: ci, width: cw - swW - 8, height: 22)
+        g5.addSubview(powerLabel)
+        powerSwitch = NSSwitch()
+        powerSwitch.target = self
+        powerSwitch.action = #selector(powerSettingChanged(_:))
+        powerSwitch.state = stopOnPowerRemoval ? .on : .off
+        powerSwitch.frame = NSRect(x: contentW - ci - swW, y: ci + (22 - swH) / 2, width: swW, height: swH)
+        g5.addSubview(powerSwitch)
+
         // Footer — Quit (separated by space, not a hairline)
         let quit = NSButton(title: "Quit Sleepless", target: self, action: #selector(quit))
         quit.controlSize = .regular
         quit.bezelStyle = .rounded
         quit.sizeToFit()
         let qs = quit.frame.size
-        quit.frame = NSRect(x: W - pad - qs.width, y: g4y + g4h + 12, width: qs.width, height: qs.height)
+        quit.frame = NSRect(x: W - pad - qs.width, y: g5y + 46 + 12, width: qs.width, height: qs.height)
         root.addSubview(quit)
 
         let vc = NSViewController()
@@ -356,72 +383,158 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func switchToggled(_ sender: NSSwitch) {
-        if performToggle(wantOn: sender.state == .on) {
-            sender.state = .off   // setup needed / failed: reflect reality (performToggle notified)
-        }
+        _ = performToggle(wantOn: sender.state == .on)
+        refresh() // reconcile the switch even when a prerequisite failed before arming
     }
 
-    // Core keep-awake toggle, decoupled from the UI sender. Returns true ONLY when the user
-    // must act (the passwordless grant is missing and setup did not complete) so the caller can
-    // reflect OFF. The decision to prompt is made on the REAL sudo result (see setDisableSleep),
-    // never by re-reading SleepDisabled: a successful sudo means the command ran, even if a
-    // safety net (Low Power Mode / battery floor) legitimately turns sleep back on afterwards —
-    // which must NOT be mistaken for "permission missing" and trigger a password prompt. This
-    // unobservable, state-proxy decision is what made earlier releases re-prompt spuriously.
+    // All mutations go through the serialized ownership helper. Never adopt global state.
     @discardableResult
     private func performToggle(wantOn: Bool) -> Bool {
-        var result = setDisableSleep(wantOn)
-        // Only a genuinely MISSING grant warrants the one-time native-auth setup. A successful
-        // sudo (.ok) — or any other failure — never re-prompts here.
-        if wantOn, result == .grantMissing {
-            if installGrantViaAuth() { result = setDisableSleep(true) }
-            if result != .ok {
-                notify("Couldn't keep awake. The permission isn't set up yet.")
-                return true
+        safetyMessage = nil
+        if wantOn {
+            guard powerSource != nil, externalPowerConnected() != nil else { showSafetyFailure("Power-source monitoring is unavailable. Keep-awake is blocked."); return true }
+            if !safetyCommand("permissions").ok {
+                guard installGrantViaAuth() else { refresh(); return true }
             }
+            guard installWatchdog() else { refresh(); return true }
+            let result = safetyCommand("arm", sessionID)
+            guard result.ok else { showSafetyFailure(result.message); refresh(); return true }
+            ownsState = true
+            recoveryPending = false
+            userForcedOn = true
+            refresh()
+            if ownsState, autoOffMinutes > 0 { startKeepAwakeTimer(minutes: autoOffMinutes) }
+        } else {
+            _ = restoreOwnedSleep("Sleepless turned off.")
         }
-        // A deliberate, successful turn-on wins over the Low Power Mode auto-off (hard floor still wins).
-        userForcedOn = wantOn && result == .ok
-        refresh()                              // applies UI + safety nets; switch reflects reality
-        if isOn, autoOffMinutes > 0 { startKeepAwakeTimer(minutes: autoOffMinutes) }
         return false
     }
 
-    // Install the one-time scoped grant via a SINGLE native macOS authorization (the
-    // standard Touch ID / password sheet) — no Terminal. Runs the bundled, audited
-    // grant.sh as root through osascript's "with administrator privileges"; grant.sh is
-    // root-aware so it writes the sudoers drop-in directly with no inner sudo prompt.
-    // Returns true once the passwordless grant is in place; after that the app never asks again.
+    private var safetyTool: String { (Bundle.main.resourcePath ?? "") + "/SleeplessSafety" }
+
+    private func safetyCommand(_ command: String, _ owner: String? = nil) -> (ok: Bool, message: String) {
+        let result = try? MacSafetyEnvironment.command(safetyTool, [command] + (owner.map { [$0] } ?? []), timeout: 60)
+        return (result?.0 == 0, result?.1.trimmingCharacters(in: .whitespacesAndNewlines) ?? "Safety helper is unavailable.")
+    }
+
+    private func showSafetyFailure(_ message: String) {
+        safetyMessage = message
+        NSLog("Sleepless: %@", message)
+        renderText()
+        notify(message)
+    }
+
+    @discardableResult
+    private func restoreOwnedSleep(_ success: String) -> Bool {
+        guard ownsState || recoveryPending else { refresh(); return true }
+        recoveryPending = true
+        let result = safetyCommand("off", sessionID)
+        guard result.ok else {
+            showSafetyFailure("Could not restore normal sleep. Recovery remains active. " + result.message)
+            return false
+        }
+        ownsState = false
+        recoveryPending = false
+        userForcedOn = false
+        safetyMessage = nil
+        cancelKeepAwakeTimer()
+        refresh()
+        if !success.isEmpty { notify(success) }
+        return true
+    }
+
+    @objc private func safetyTick() {
+        if recoveryPending { _ = restoreOwnedSleep(""); return }
+        if ownsState, let end = timerEndDate, end <= Date() { keepAwakeTimerFired(); return }
+        if ownsState {
+            let result = safetyCommand("renew", sessionID)
+            if !result.ok {
+                safetyMessage = result.message
+                _ = restoreOwnedSleep("")
+                showSafetyFailure(result.message)
+            }
+        }
+        refresh()
+    }
+
+    // Native IOKit source is scheduled on the main run loop, including modal tracking.
+    private func observePowerSources() {
+        powerPolicy = PowerRemovalPolicy()
+        _ = powerPolicy.update(externalPower: externalPowerConnected(), enabled: stopOnPowerRemoval)
+        guard let source = IOPSNotificationCreateRunLoopSource({ context in
+            guard let context else { return }
+            MainActor.assumeIsolated {
+                Unmanaged<AppDelegate>.fromOpaque(context).takeUnretainedValue().powerChanged()
+            }
+        }, Unmanaged.passUnretained(self).toOpaque())?.takeRetainedValue() else { return }
+        powerSource = source
+        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
+    }
+
+    private func externalPowerConnected() -> Bool? {
+        guard let info = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
+              let type = IOPSGetProvidingPowerSourceType(info)?.takeUnretainedValue() else { return nil }
+        let value = type as String
+        if value == kIOPSACPowerValue { return true }
+        if value == kIOPSBatteryPowerValue || value == kIOPSUPSType { return false }
+        return nil
+    }
+
+    private func powerChanged() {
+        if powerPolicy.update(externalPower: externalPowerConnected(), enabled: stopOnPowerRemoval) {
+            _ = restoreOwnedSleep("External power disconnected. Normal sleep restored.")
+        }
+        refresh()
+    }
+
+    @objc private func powerSettingChanged(_ sender: NSSwitch) {
+        stopOnPowerRemoval = sender.state == .on
+        UserDefaults.standard.set(stopOnPowerRemoval, forKey: "stopOnPowerRemoval")
+    }
+
+    private func installWatchdog() -> Bool {
+        guard let resources = Bundle.main.resourcePath else { return false }
+        let result = try? MacSafetyEnvironment.command("/bin/bash", [resources + "/watchdog-agent.sh", "install"], timeout: 30)
+        guard result?.0 == 0 else {
+            showSafetyFailure(result?.1 ?? "Could not install the watchdog.")
+            return false
+        }
+        // The agent's first tick may be waiting for the install transaction lock.
+        var ready = safetyCommand("ready")
+        for _ in 0..<10 where !ready.ok {
+            Thread.sleep(forTimeInterval: 0.1)
+            ready = safetyCommand("ready")
+        }
+        if !ready.ok { showSafetyFailure(ready.message) }
+        return ready.ok
+    }
+
+    // Preserve the native one-time authorization sheet. Execute a fixed installer body,
+    // never user-writable bundled code as root. Only the validated account name varies.
     @discardableResult
     private func installGrantViaAuth() -> Bool {
         let intro = NSAlert()
-        intro.alertStyle = .informational
         intro.messageText = "Enable keeping your Mac awake"
-        intro.informativeText = "Sleepless flips a protected macOS setting (pmset disablesleep), so it needs your permission once. macOS will ask you to authenticate (Touch ID or your password). After that the switch works instantly, with no more prompts."
+        intro.informativeText = "Sleepless needs permission to change macOS sleep settings. This also sets up an independent watchdog to restore sleep if Sleepless stops. Use Sleepless without another sleep-setting tool: macOS cannot identify concurrent changes to this global setting."
         intro.addButton(withTitle: "Enable")
         intro.addButton(withTitle: "Not now")
         NSApp.activate(ignoringOtherApps: true)
         guard intro.runModal() == .alertFirstButtonReturn else { return false }
-
-        guard let res = Bundle.main.resourcePath else { return false }
-        let grant = res + "/grant.sh"
-        // Pass the REAL user: under the native auth sheet grant.sh runs as root with
-        // SUDO_USER unset, so without this the grant would be written for "root" (useless).
-        let shellCmd = "SLEEPLESS_USER='\(NSUserName())' /bin/bash '\(grant)' --yes"
-        // escape for an AppleScript string literal, then run with one native auth sheet
-        let escaped = shellCmd.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
-        let osa = "do shell script \"\(escaped)\" with administrator privileges"
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        proc.arguments = ["-e", osa]
-        proc.standardOutput = Pipe(); proc.standardError = Pipe()
-        do { try proc.run(); proc.waitUntilExit() }
-        catch { notify("Couldn't start the one-time setup."); return false }
-        if proc.terminationStatus == 0 { return true }   // grant.sh installed the rule successfully
-        if proc.terminationStatus != 128 {               // 128 = user cancelled the auth sheet
-            notify("Setup didn't complete. Try again, or run grant.sh from the app bundle.")
-        }
-        return false
+        let user = NSUserName()
+        guard user.range(of: "^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$", options: .regularExpression) != nil, user != "root" else { return false }
+        let body = """
+        set -eu
+        t=$(/usr/bin/mktemp /private/tmp/sleepless-grant.XXXXXX)
+        trap '/bin/rm -f "$t"' EXIT
+        /usr/bin/printf '%s\n' '\(user) ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1' > "$t"
+        /usr/sbin/visudo -cf "$t"
+        /usr/bin/install -o root -g wheel -m 0440 "$t" /etc/sudoers.d/sleepless-disablesleep
+        /usr/sbin/visudo -c
+        """
+        let escaped = body.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+        let result = try? MacSafetyEnvironment.command("/usr/bin/osascript", ["-e", "do shell script \"\(escaped)\" with administrator privileges"], timeout: 120)
+        guard result?.0 == 0 else { showSafetyFailure("Sleep permission setup was cancelled or failed."); return false }
+        return safetyCommand("permissions").ok
     }
 
     // A brief, subtle pulse on the menu-bar glyph whenever the state (and thus the cup
@@ -447,7 +560,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case 2: autoOffMinutes = 120
         default: autoOffMinutes = 0
         }
-        if isOn, autoOffMinutes > 0 {
+        if ownsState, autoOffMinutes > 0 {
             startKeepAwakeTimer(minutes: autoOffMinutes)
         } else {
             cancelKeepAwakeTimer()
@@ -473,12 +586,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func keepAwakeTimerFired() {
-        setDisableSleep(false)
-        cancelKeepAwakeTimer()
-        autoOffMinutes = 0
-        autoOffControl?.selectedSegment = 0
-        applyUI(on: readSleepDisabled())
-        notify("Auto-off timer ended. Sleepless turned off.")
+        if restoreOwnedSleep("Auto-off timer ended. Normal sleep restored.") {
+            autoOffMinutes = 0
+            autoOffControl?.selectedSegment = 0
+        } // failed clear remains recoveryPending and is retried every 10 seconds
     }
 
     private func startCountdownTicker() {
@@ -514,14 +625,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Core state sync
     @objc private func refresh() {
-        let on = readSleepDisabled()
-        applyUI(on: on)
-        if on { enforceSafetyNets() }
+        let result = safetyCommand("status", sessionID)
+        if !result.ok {
+            safetyMessage = result.message
+            renderText()
+            return // unknown state is never interpreted as OFF
+        }
+        ownsState = result.message == "owned"
+        foreignState = result.message == "external" || result.message == "other-session"
+        toggleSwitch?.isEnabled = result.message == "off" || ownsState
+        applyUI(on: result.message != "off")
+        if ownsState && !recoveryPending { enforceSafetyNets() }
     }
 
     private func applyUI(on: Bool) {
         isOn = on
-        if !on { cancelKeepAwakeTimer() }   // going OFF clears any countdown/timer
+        if !on || !ownsState { cancelKeepAwakeTimer() }   // going OFF clears any countdown/timer
         // ARMED = kept awake while actively discharging on battery, so the
         // auto-off safety net is live. Distinct menu-bar glyph (cup + dot).
         var armed = false
@@ -545,6 +664,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Brand-violet accent communicates the privileged "awake" state at a glance.
         mainCard?.active = on
         headerMark?.contentTintColor = on ? brandAccentSoft : .labelColor
+        if foreignState { statusItem.button?.toolTip = "Sleep prevention belongs to another session or tool." }
         renderText()
         updateCountdownLabel()
     }
@@ -552,6 +672,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // Update text labels only (no pmset subprocess; safe to call on every slider tick).
     private func renderText() {
         floorValueLabel?.stringValue = "\(batteryFloorPercent)%"
+        if foreignState {
+            captionLabel?.stringValue = "Sleep prevention belongs to another session or tool. Sleepless will leave it unchanged."
+            captionLabel?.toolTip = captionLabel?.stringValue
+            return
+        }
+        if let safetyMessage {
+            captionLabel?.stringValue = safetyMessage
+            captionLabel?.toolTip = safetyMessage
+            return
+        }
+        captionLabel?.toolTip = nil
         captionLabel?.stringValue = isOn
             ? "Stays awake when the lid is closed. Turns off at \(batteryFloorPercent)% battery or in Low Power Mode."
             : "Sleeps normally when you close the lid."
@@ -566,90 +697,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         renderText()
     }
 
-    // Result of the privileged keep-awake toggle, based on sudo's REAL exit status — not on a
-    // second, independent state read. `.ok` = the command ran; `.grantMissing` = the passwordless
-    // sudoers grant isn't installed (sudo -n refused), the one case that warrants setup; `.failed`
-    // = any other error. Using sudo's own result (instead of re-reading SleepDisabled) is the fix:
-    // a safety net flipping sleep back on must never look like "permission missing" and re-prompt.
-    private enum ToggleResult: Equatable { case ok, grantMissing, failed(String) }
-
-    @discardableResult
-    private func setDisableSleep(_ on: Bool) -> ToggleResult {
-        // sudo -n: never prompt (GUI app has no TTY). The exact argument vector matches the
-        // NOPASSWD sudoers grant, so this runs without a password.
-        let (exit, _, err) = runPrivileged(["-n", "/usr/bin/pmset", "-a", "disablesleep", on ? "1" : "0"])
-        let result: ToggleResult
-        if exit == 0 {
-            result = .ok
-        } else if err.range(of: "a password is required", options: .caseInsensitive) != nil
-               || err.range(of: "not allowed", options: .caseInsensitive) != nil
-               || err.range(of: "may not run", options: .caseInsensitive) != nil {
-            result = .grantMissing   // grant absent/removed -> sudo -n refused to run passwordless
-        } else {
-            result = .failed(err.isEmpty ? "exit \(exit)" : err.trimmingCharacters(in: .whitespacesAndNewlines))
-        }
-        return result
-    }
-
-    // Run a privileged command via sudo, capturing exit status + stderr (which the generic
-    // runCapture discards). stdin is /dev/null so a GUI process with no controlling TTY can
-    // never block on a prompt. This is what lets the app KNOW whether its own toggle worked.
-    private func runPrivileged(_ args: [String]) -> (exit: Int32, out: String, err: String) {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-        process.arguments = args
-        var env = ProcessInfo.processInfo.environment
-        env["PATH"] = "/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin"
-        env["HOME"] = FileManager.default.homeDirectoryForCurrentUser.path
-        process.environment = env
-        let outPipe = Pipe(), errPipe = Pipe()
-        process.standardOutput = outPipe
-        process.standardError = errPipe
-        process.standardInput = FileHandle.nullDevice
-        do { try process.run() }
-        catch {
-            NSLog("Sleepless: failed to launch sudo: %@", error.localizedDescription)
-            return (-1, "", "launch failed: \(error.localizedDescription)")
-        }
-        let outData = outPipe.fileHandleForReading.readDataToEndOfFile()
-        let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        return (process.terminationStatus,
-                String(data: outData, encoding: .utf8) ?? "",
-                String(data: errData, encoding: .utf8) ?? "")
-    }
-
     // MARK: - Battery + Low-Power-Mode safety nets (silent; no extra UI) — Feature 3
     private func enforceSafetyNets() {
         let (onBattery, discharging, percent) = batteryStatus()
         guard onBattery, discharging else { return }
-        // Hard battery floor ALWAYS wins, even over a deliberate turn-on: never drain to empty.
+        // Battery floor overrides a deliberate turn-on; failed restoration stays armed for retry.
         if percent <= batteryFloorPercent {
-            setDisableSleep(false); userForcedOn = false
-            applyUI(on: readSleepDisabled())
-            notify("Battery low (\(percent)%). Sleepless turned off.")
+            _ = restoreOwnedSleep("Battery low (\(percent)%). Normal sleep restored.")
             return
         }
         // Low Power Mode auto-off, UNLESS the user deliberately chose to keep awake this session.
         if ProcessInfo.processInfo.isLowPowerModeEnabled && !userForcedOn {
-            setDisableSleep(false)
-            applyUI(on: readSleepDisabled())
-            notify("Low Power Mode on. Sleepless turned off.")
+            _ = restoreOwnedSleep("Low Power Mode on. Normal sleep restored.")
         }
     }
 
     // MARK: - Readers (no root needed)
-    private func readSleepDisabled() -> Bool {
-        let out = runCapture("/usr/bin/pmset", ["-g"])
-        for line in out.split(whereSeparator: { $0 == "\n" }) {
-            if line.range(of: "SleepDisabled", options: .caseInsensitive) != nil {
-                let toks = line.split(whereSeparator: { $0 == " " || $0 == "\t" })
-                if let last = toks.last { return last == "1" }
-            }
-        }
-        return false   // line absent -> OFF
-    }
-
     private func batteryStatus() -> (onBattery: Bool, discharging: Bool, percent: Int) {
         let out = runCapture("/usr/bin/pmset", ["-g", "batt"])
         let onBattery = out.contains("Battery Power")
@@ -663,28 +726,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Notification (mirrors Nexus' osascript approach)
     private func notify(_ message: String) {
-        let script = "display notification \"\(message)\" with title \"Sleepless\" sound name \"Tink\""
-        _ = runCapture("/usr/bin/osascript", ["-e", script])
+        let escaped = message.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+        _ = runCapture("/usr/bin/osascript", ["-e", "display notification \"\(escaped)\" with title \"Sleepless\""])
     }
 
-    // MARK: - Process runner (explicit PATH/HOME; captures stdout)
     @discardableResult
     private func runCapture(_ launchPath: String, _ args: [String]) -> String {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: launchPath)
-        process.arguments = args
-        var env = ProcessInfo.processInfo.environment
-        env["PATH"] = "/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin"
-        env["HOME"] = FileManager.default.homeDirectoryForCurrentUser.path
-        process.environment = env
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = Pipe()
-        do { try process.run() }
-        catch { NSLog("Sleepless: failed to launch %@: %@", launchPath, error.localizedDescription); return "" }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        return String(data: data, encoding: .utf8) ?? ""
+        (try? MacSafetyEnvironment.command(launchPath, args).1) ?? ""
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        let result = safetyCommand("exit", sessionID)
+        guard result.ok else {
+            recoveryPending = ownsState
+            showSafetyFailure(result.message)
+            let alert = NSAlert()
+            alert.messageText = "Normal sleep could not be restored"
+            alert.informativeText = "Sleepless will stay open and retry. The watchdog and recovery record remain installed."
+            alert.runModal()
+            return .terminateCancel
+        }
+        return .terminateNow
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        let result = safetyCommand("exit", sessionID)
+        if !result.ok { NSLog("Sleepless: termination recovery failed: %@", result.message) }
+        if let powerSource { CFRunLoopRemoveSource(CFRunLoopGetMain(), powerSource, .commonModes) }
     }
 
     @objc private func quit() { NSApp.terminate(nil) }
