@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Optional "Reconnect Wi-Fi if it drops" switch, off by default. With the lid closed,
+  macOS often does not rejoin Wi-Fi after the router drops it, so the Mac stays awake but
+  nobody can reach it. When the switch is on, Sleepless is keeping the Mac awake, the lid
+  is closed and there has been no network for 3 minutes, it turns Wi-Fi off and on once.
+  It waits at least 10 minutes before trying again. It never touches Wi-Fi you turned off
+  yourself, and it does nothing while Ethernet or another connection is up. No root, no
+  new sudo rule.
+
 ## [1.2.7] - 2026-06-03
 
 ### Changed

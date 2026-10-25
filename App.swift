@@ -29,6 +29,11 @@
 //      re-enable disablesleep on its own.
 //   3. Low-Power-Mode auto-off — on battery, if Low Power Mode is on, Sleepless
 //      turns itself off. Same shape as the battery floor, evaluated on the same tick.
+//   4. Wi-Fi reconnect — OFF by default. With the lid closed, macOS often does not
+//      rejoin Wi-Fi after a router blip, so the Mac stays awake but unreachable. If
+//      enabled, and the Mac has had no network for a few minutes while kept awake with
+//      the lid closed, Sleepless power-cycles the Wi-Fi radio (CoreWLAN, no root) once,
+//      then waits out a cooldown. Evaluated on the same tick; nothing persists.
 //
 // Build (mirrors Nexus.app): Command Line Tools `swiftc`, NO Xcode project.
 //   swiftc -O -parse-as-library -target arm64-apple-macos26.0 -framework AppKit \
@@ -36,6 +41,9 @@
 //   File MUST be named App.swift and compiled -parse-as-library so the
 //   @main enum + @MainActor static main() entry is Swift-6 isolation-safe.
 import AppKit
+import CoreWLAN
+import IOKit
+import Network
 import ServiceManagement
 
 // MARK: - Tunables
@@ -45,6 +53,10 @@ private let floorKey = "batteryFloorPercent"
 private let floorDefault = 15
 private let floorMin = 5
 private let floorMax = 50
+// Wi-Fi reconnect config (opt-in; persisted in UserDefaults).
+private let wifiReconnectKey = "reconnectWiFi"
+private let wifiOfflineGrace: TimeInterval = 180     // offline this long before acting
+private let wifiCycleCooldown: TimeInterval = 600    // at most one power-cycle per 10 min
 
 // MARK: - Menu-bar coffee glyph (native SF Symbols, MONOCHROME template — state by SHAPE)
 // macOS convention: a menu-bar extra is a template image (no colour) so it adapts to light/dark
@@ -156,6 +168,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var autoOffControl: NSSegmentedControl!
     private var countdownLabel: NSTextField!
     private var loginSwitch: NSSwitch!
+    private var wifiSwitch: NSSwitch!
     private var clickMonitor: Any?
     private var batteryFloorPercent = floorDefault
     private var isOn = false
@@ -167,12 +180,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var countdownTicker: Timer?      // 1 Hz label refresh, only while the popover is open
     private var timerEndDate: Date?
 
+    // Wi-Fi reconnect (Feature 4). The path monitor only records when the network went away;
+    // the decision to act is made on the regular poll tick.
+    private var reconnectWiFi = false
+    private let pathMonitor = NWPathMonitor()
+    private var offlineSince: Date?
+    private var lastWiFiCycle: Date?
+    private var wifiOffByUs = false   // we turned the radio off and have not confirmed it back on
+
     private let popoverWidth: CGFloat = 320
-    private let popoverHeight: CGFloat = 432
+    private let popoverHeight: CGFloat = 490
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         batteryFloorPercent = min(max((UserDefaults.standard.object(forKey: floorKey) as? Int) ?? floorDefault, floorMin), floorMax)
+        reconnectWiFi = UserDefaults.standard.bool(forKey: wifiReconnectKey)
+        pathMonitor.pathUpdateHandler = { [weak self] path in
+            let online = path.status == .satisfied
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                if online { self.offlineSince = nil }
+                else if self.offlineSince == nil { self.offlineSince = Date() }
+            }
+        }
+        pathMonitor.start(queue: .main)
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
             button.image = offGlyph
@@ -305,13 +336,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         loginSwitch.frame = NSRect(x: contentW - ci - swW, y: ci + (22 - swH) / 2, width: swW, height: swH)
         g4.addSubview(loginSwitch)
 
+        // GROUP 5 — Wi-Fi reconnect (off by default; only acts while awake with the lid closed)
+        let g5y = g4y + g4h + 12, g5h: CGFloat = 46
+        let g5 = makeCard(NSRect(x: pad, y: g5y, width: contentW, height: g5h))
+        let wifiLabel = makeLabel("Reconnect Wi-Fi if it drops", font: .systemFont(ofSize: 13), color: .labelColor)
+        wifiLabel.frame = NSRect(x: ci, y: ci, width: cw - swW - 8, height: 22)
+        wifiLabel.toolTip = "With the lid closed, if the Mac has had no network for 3 minutes, turn Wi-Fi off and on again."
+        g5.addSubview(wifiLabel)
+        wifiSwitch = NSSwitch()
+        wifiSwitch.target = self
+        wifiSwitch.action = #selector(wifiToggled(_:))
+        wifiSwitch.state = reconnectWiFi ? .on : .off
+        wifiSwitch.frame = NSRect(x: contentW - ci - swW, y: ci + (22 - swH) / 2, width: swW, height: swH)
+        g5.addSubview(wifiSwitch)
+
         // Footer — Quit (separated by space, not a hairline)
         let quit = NSButton(title: "Quit Sleepless", target: self, action: #selector(quit))
         quit.controlSize = .regular
         quit.bezelStyle = .rounded
         quit.sizeToFit()
         let qs = quit.frame.size
-        quit.frame = NSRect(x: W - pad - qs.width, y: g4y + g4h + 12, width: qs.width, height: qs.height)
+        quit.frame = NSRect(x: W - pad - qs.width, y: g5y + g5h + 12, width: qs.width, height: qs.height)
         root.addSubview(quit)
 
         let vc = NSViewController()
@@ -438,7 +483,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         b.layer?.add(pulse, forKey: "statePulse")
     }
 
-    @objc private func poll() { refresh() }
+    @objc private func poll() {
+        refresh()
+        reconnectWiFiIfNeeded()
+    }
 
     // MARK: - Auto-off timer (Feature 1)
     @objc private func autoOffChanged(_ sender: NSSegmentedControl) {
@@ -511,6 +559,52 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func loginItemEnabled() -> Bool { SMAppService.mainApp.status == .enabled }
+
+    // MARK: - Wi-Fi reconnect (Feature 4) — OFF by default
+    @objc private func wifiToggled(_ sender: NSSwitch) {
+        reconnectWiFi = sender.state == .on
+        UserDefaults.standard.set(reconnectWiFi, forKey: wifiReconnectKey)
+    }
+
+    // Runs on the poll tick. Acts only when every condition holds: opted in, kept awake, lid
+    // closed, no network for the grace period, the Wi-Fi radio is on (never override a user who
+    // switched Wi-Fi off), and the cooldown has passed. If another interface (Ethernet) is up,
+    // the path is satisfied and this never fires.
+    private func reconnectWiFiIfNeeded() {
+        if wifiOffByUs { wifiPowerOn(); return }   // an earlier power-on failed: retry, nothing else
+        guard reconnectWiFi, isOn, lidClosed(),
+              let since = offlineSince, Date().timeIntervalSince(since) >= wifiOfflineGrace else { return }
+        if let last = lastWiFiCycle, Date().timeIntervalSince(last) < wifiCycleCooldown { return }
+        guard let wifi = CWWiFiClient.shared().interface(), wifi.powerOn() else { return }
+        lastWiFiCycle = Date()
+        NSLog("Sleepless: offline for %.0fs with the lid closed, power-cycling Wi-Fi", Date().timeIntervalSince(since))
+        do {
+            try wifi.setPower(false)
+            wifiOffByUs = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+                MainActor.assumeIsolated { self?.wifiPowerOn() }
+            }
+        } catch {
+            NSLog("Sleepless: Wi-Fi power off failed: %@", error.localizedDescription)
+        }
+    }
+
+    private func wifiPowerOn() {
+        do {
+            try CWWiFiClient.shared().interface()?.setPower(true)
+            wifiOffByUs = false
+        } catch {
+            NSLog("Sleepless: Wi-Fi power on failed, retrying next tick: %@", error.localizedDescription)
+        }
+    }
+
+    private func lidClosed() -> Bool {
+        let root = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("IOPMrootDomain"))
+        guard root != 0 else { return false }
+        defer { IOObjectRelease(root) }
+        let state = IORegistryEntryCreateCFProperty(root, "AppleClamshellState" as CFString, kCFAllocatorDefault, 0)
+        return (state?.takeRetainedValue() as? Bool) ?? false
+    }
 
     // MARK: - Core state sync
     @objc private func refresh() {

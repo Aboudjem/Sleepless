@@ -56,7 +56,7 @@ fi
 # 2. Compile the executable.
 echo "==> Compiling App.swift"
 BIN_TMP="$(mktemp -d)"
-swiftc -O -parse-as-library -target "$TARGET" -framework AppKit -framework ServiceManagement \
+swiftc -O -parse-as-library -target "$TARGET" -framework AppKit -framework CoreWLAN -framework Network -framework ServiceManagement \
   "$REPO/App.swift" -o "$BIN_TMP/$APP_NAME"
 
 # 3. Assemble the bundle: Contents/{Info.plist, MacOS/<exe>, Resources/<name>.icns}

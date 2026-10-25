@@ -67,6 +67,7 @@ Then click the cup in the menu bar, flip the switch, and close the lid.
 | 🪫 | **Low Power Mode** | Steps aside when LPM is on, on battery. |
 | 🖥️ | **No dongle** | Lid closed, on battery. No monitor, no HDMI plug. |
 | 🚀 | **Launch at login** | Optional, off by default, always starts idle. |
+| 📶 | **Wi-Fi reconnect** | Optional. Lid closed and offline for 3 min? It turns Wi-Fi off and on. |
 | 🪶 | **Tiny + native** | One AppKit file. No Dock icon, daemon, or kext. |
 
 **Menu-bar glyph:** empty cup = off · full cup = awake · full cup + dot = awake on battery (auto-off live).
