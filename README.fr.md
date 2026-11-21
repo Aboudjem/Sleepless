@@ -75,7 +75,7 @@ Cliquez ensuite sur la tasse dans la barre des menus, activez **Allow lid closed
 **Glyphe de la barre des menus :** tasse sur soucoupe = arrêt · tasse fumante = éveillé · tasse fumante pleine = capot fermé autorisé · avec un point = capot fermé sur batterie (extinction automatique active).
 
 > [!WARNING]
-> La protection thermique est un filet de sécurité sans garantie. La ventilation et des limites sûres relèvent de votre responsabilité : ne l'utilisez jamais capot fermé dans un sac ou sur une surface molle. Survolez le badge de risque dans le menu pour les détails.
+> La protection thermique est un filet de sécurité sans garantie. La ventilation et des limites sûres relèvent de votre responsabilité : ne l'utilisez jamais capot fermé dans un sac ou sur une surface molle. Survolez le badge de risque dans la fenêtre contextuelle pour les détails.
 
 ## Sleepless face aux alternatives
 

@@ -16,7 +16,7 @@
 //   2. Battery-floor cutoff (5%–50%, default 15%) — always wins on battery.
 //   3. Low-Power-Mode auto-off — on battery, steps aside unless forced on this session.
 //   4. Thermal cutoff on AC or battery: CPU temperature limit (60–95 °C or Off, default
-//      80 °C, mean of the hottest 60% of core sensors) and macOS thermalState limit
+//      80 °C, mean of the hottest 60% of CPU die sensors) and macOS thermalState limit
 //      (Fair / Serious / Critical / Off, default Serious), with a 30-minute graph.
 //   5. Crash safety: signal handlers plus a detached, unprivileged watchdog loop that
 //      restores `disablesleep 0` if the app dies or its lease goes stale for 2 minutes.
@@ -107,9 +107,11 @@ private struct SMCKeyData_t {
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 }
 
-// Non-root CPU core temperature reader via AppleSMC (Te*/Tp* efficiency & performance
-// core sensors on Apple Silicon), with IOKit HID fallback. Reports the mean of the
-// hottest 60% of core sensors, averaged across 5x 20ms bursts to avoid jitter.
+// Non-root CPU die temperature reader. Primary: the PMU "tdie" die sensors via the
+// private IOKit HID event system (they track macOS thermal pressure). Fallback: AppleSMC
+// Te*/Tp* (Apple Silicon) or TC* (Intel) keys; on Apple Silicon many of those are
+// hotspot sensors that read 20-30 °C above the die under load. Reports the mean of the
+// hottest 60% of sensors, averaged across 5x 20ms bursts to avoid jitter.
 private final class ThermalSensor: @unchecked Sendable {
     private struct SMCKeyMeta {
         let key: UInt32
@@ -128,7 +130,7 @@ private final class ThermalSensor: @unchecked Sendable {
     private var smcConn: io_connect_t = 0
     private var cpuKeys: [SMCKeyMeta] = []
 
-    // HID fallback if AppleSMC exposes no CPU keys
+    // HID die sensors (primary source)
     private var hidClient: AnyObject?
     private var hidCopyServices: CopyServicesFn?
     private var hidCopyEvent: CopyEventFn?
@@ -261,21 +263,10 @@ private final class ThermalSensor: @unchecked Sendable {
         return top.reduce(0, +) / Double(top.count)
     }
 
-    /// Single-pass reading: hottest 60% of CPU core sensors (AppleSMC, fallback HID).
+    /// Single-pass reading: hottest 60% of CPU die sensors (HID, fallback AppleSMC).
     func readCelsius() -> Double? {
         lock.lock()
         defer { lock.unlock() }
-
-        if smcConn != 0, !cpuKeys.isEmpty {
-            var coreTemps: [Double] = []
-            coreTemps.reserveCapacity(cpuKeys.count)
-            for meta in cpuKeys {
-                if let v = readSMCKeyLocked(meta), v > 15 && v < 118 {
-                    coreTemps.append(v)
-                }
-            }
-            if !coreTemps.isEmpty { return Self.hottestShareMean(coreTemps) }
-        }
 
         if let client = hidClient, let copyServices = hidCopyServices,
            let copyEvent = hidCopyEvent, let getFloat = hidGetFloat, let copyProp = hidCopyProp,
@@ -291,6 +282,17 @@ private final class ThermalSensor: @unchecked Sendable {
                 }
             }
             if !dieTemps.isEmpty { return Self.hottestShareMean(dieTemps) }
+        }
+
+        if smcConn != 0, !cpuKeys.isEmpty {
+            var coreTemps: [Double] = []
+            coreTemps.reserveCapacity(cpuKeys.count)
+            for meta in cpuKeys {
+                if let v = readSMCKeyLocked(meta), v > 15 && v < 118 {
+                    coreTemps.append(v)
+                }
+            }
+            if !coreTemps.isEmpty { return Self.hottestShareMean(coreTemps) }
         }
         return nil
     }

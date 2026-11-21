@@ -75,7 +75,7 @@ Luego haz clic en la taza de la barra de menús, activa **Allow lid closed** y c
 **Glifo de la barra de menús:** taza sobre platillo = apagado · taza humeante = despierto · taza humeante rellena = tapa cerrada permitida · con un punto = tapa cerrada con batería (apagado automático en vivo).
 
 > [!WARNING]
-> La protección térmica es una red de seguridad sin garantías. La ventilación y unos límites seguros son responsabilidad tuya: nunca lo uses con la tapa cerrada dentro de una bolsa o sobre una superficie blanda. Pasa el puntero sobre la etiqueta de riesgo del menú para ver los detalles.
+> La protección térmica es una red de seguridad sin garantías. La ventilación y unos límites seguros son responsabilidad tuya: nunca lo uses con la tapa cerrada dentro de una bolsa o sobre una superficie blanda. Pasa el puntero sobre la etiqueta de riesgo de la ventana emergente para ver los detalles.
 
 ## Sleepless frente a las alternativas
 
