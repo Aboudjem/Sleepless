@@ -254,7 +254,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             leaseTimer = Timer.scheduledTimer(timeInterval: leaseRefreshInterval, target: self,
                                               selector: #selector(refreshLeaseTick), userInfo: nil, repeats: true)
         }
-        // Spawn a detached user-space watchdog (no root daemon, no extra sudoers rules).
+        // Spawn a user-space watchdog child that outlives the app (no root daemon, no extra sudoers rules).
         // If Sleepless crashes (kill -0 fails) or hangs (>120s stale lease), it restores
         // pmset disablesleep 0 using the existing scoped NOPASSWD grant and exits.
         let pid = ProcessInfo.processInfo.processIdentifier

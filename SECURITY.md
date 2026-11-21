@@ -56,13 +56,16 @@ Consequences you can rely on:
   grant cannot be widened by appending flags.
 - The app calls `sudo` with an **argv array**, not a shell string
   (`Process.arguments` in `App.swift`), so that call has no word-splitting surface.
-- The one shell is the crash watchdog. While lid-closed mode is on, the app starts a
+- The crash watchdog is the one shell the app keeps running. While lid-closed mode is on, the app starts a
   `/bin/sh -c` loop from a script compiled into the binary. The process ID and lease path
   are passed as positional arguments, never spliced into the script. It runs as your user,
   and the only privileged command it can run is `sudo -n /usr/bin/pmset -a disablesleep 0`,
   the off half of the same grant. It exits when the app removes its lease file, or after
   restoring sleep.
-- There is **no helper script on disk**. The classic sudoers footgun is a *user-writable* script
+- The one-time setup is the other shell. The first time you turn on lid closed without the
+  grant, the app runs the bundled `grant.sh` as root through `osascript … with administrator
+  privileges`, after macOS asks you to authenticate. It only installs the sudoers drop-in.
+- The sudoers rule points at **no helper script**. The classic sudoers footgun is a *user-writable* script
   that root executes — rewrite it, get root. Sleepless points the rule directly at Apple's
   `/usr/bin/pmset`, and the sudoers file itself is `root:wheel 0440` (you cannot modify it
   without `sudo`). Both mitigations are exactly what the literature prescribes.

@@ -14,7 +14,7 @@ The whole app is one file. To satisfy yourself it does what it claims and nothin
 
 | Read | What you are checking |
 |---|---|
-| [`App.swift`](../App.swift) | The only thing it runs as root is `sudo -n /usr/bin/pmset -a disablesleep 0/1` (`setDisableSleep`). No network calls. File writes: `UserDefaults`, plus a timestamp lease at `~/Library/Caches/Sleepless/lid-lease` while lid-closed mode is on. One shell string: the crash watchdog in `startLeaseWatchdog`, whose only privileged command is `sudo -n /usr/bin/pmset -a disablesleep 0`. |
+| [`App.swift`](../App.swift) | At runtime the only thing it runs as root is `sudo -n /usr/bin/pmset -a disablesleep 0/1` (`setDisableSleep`). The one-time setup runs the bundled `grant.sh` as root through an `osascript` administrator prompt (`installGrantViaAuth`). No network calls. File writes: `UserDefaults`, plus a timestamp lease at `~/Library/Caches/Sleepless/lid-lease` while lid-closed mode is on. Shell strings: that one-time setup, and the crash watchdog in `startLeaseWatchdog`, whose only privileged command is `sudo -n /usr/bin/pmset -a disablesleep 0`. |
 | [`sleepless.sudoers.template`](../sleepless.sudoers.template) / [`grant.sh`](../grant.sh) | The passwordless grant permits exactly those two fully-specified commands, no wildcards, installed `root:wheel 0440`. |
 | [`build.sh`](../build.sh) | `swiftc` + a hand-assembled, ad-hoc-signed bundle. No downloaded blobs, no install-time scripts baked into the binary. |
 | [`uninstall.sh`](../uninstall.sh) | Removes the app, the login item, and the sudoers drop-in, then proves `sudo -n pmset …` prompts again. |
