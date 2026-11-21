@@ -18,7 +18,7 @@
 
 <p align="center">
   <b>Gardez votre MacBook éveillé capot fermé, sur batterie, sans écran externe.</b><br>
-  <sub>Un seul interrupteur dans la barre des menus, avec minuterie d'extinction automatique et coupure au plancher de batterie pour ne jamais la vider à plat.</sub>
+  <sub>Deux interrupteurs dans la barre des menus, avec minuterie d'extinction automatique et coupure au plancher de batterie pour ne jamais la vider à plat.</sub>
 </p>
 
 <p align="center">
@@ -55,21 +55,23 @@ brew install --cask aboudjem/tap/sleepless
 | **Téléchargement** | Récupérez la [dernière version](https://github.com/Aboudjem/Sleepless/releases/latest), décompressez vers `/Applications`, puis approuvez-la dans **Réglages Système → Confidentialité et sécurité → Ouvrir quand même** (elle est signée de façon ad-hoc). |
 | **Compiler depuis les sources** | `git clone https://github.com/Aboudjem/Sleepless.git && cd Sleepless && ./install.sh` (sans invite Gatekeeper). |
 
-Cliquez ensuite sur la tasse dans la barre des menus, basculez l'interrupteur et fermez le capot.
+Cliquez ensuite sur la tasse dans la barre des menus, activez **Allow lid closed** et fermez le capot.
 
 ## Fonctionnalités
 
 | | | |
 |---|---|---|
-| ☕ | **Un seul interrupteur** | Cliquez sur la tasse dans la barre des menus, basculez l'interrupteur. |
-| ⏲️ | **Minuterie d'extinction automatique** | 1 h ou 2 h avec compte à rebours en direct, puis extinction. |
+| ☕ | **Keep Mac awake** | Activé au lancement. Empêche la veille d'inactivité avec une assertion d'alimentation standard, sans root. |
+| 💻 | **Allow lid closed** | Second interrupteur optionnel pour `pmset disablesleep`. |
+| ⏲️ | **Minuterie d'extinction automatique** | Arrêt, 15 min, 30 min, 1 h, 2 h, 4 h ou 8 h avec compte à rebours en direct, puis extinction. |
 | 🔋 | **Plancher de batterie** | Extinction automatique entre 5 et 50 % sur batterie (15 % par défaut). |
 | 🪫 | **Mode Économie d'énergie** | S'efface quand le mode Économie d'énergie est actif, sur batterie. |
+| 🛟 | **Résistant aux plantages** | Si Sleepless quitte, plante ou se fige, le mode capot fermé se désactive tout seul. |
 | 🖥️ | **Sans dongle** | Capot fermé, sur batterie. Sans moniteur, sans fiche HDMI. |
-| 🚀 | **Lancer à l'ouverture de session** | Optionnel, désactivé par défaut, démarre toujours à l'arrêt. |
+| 🚀 | **Lancer à l'ouverture de session** | Optionnel, désactivé par défaut. |
 | 🪶 | **Minuscule et native** | Un seul fichier AppKit. Sans icône dans le Dock, démon ni kext. |
 
-**Glyphe de la barre des menus :** tasse vide = arrêt · tasse pleine = éveillé · tasse pleine + point = éveillé sur batterie (extinction automatique active).
+**Glyphe de la barre des menus :** tasse sur soucoupe = arrêt · tasse fumante = éveillé · tasse fumante pleine = capot fermé autorisé · avec un point = capot fermé sur batterie (extinction automatique active).
 
 ## Sleepless face aux alternatives
 
@@ -96,14 +98,17 @@ Cliquez ensuite sur la tasse dans la barre des menus, basculez l'interrupteur et
 
 ## Comment ça marche
 
-Sleepless bascule `pmset disablesleep` (le drapeau `SleepDisabled` du noyau), le relit pour que la barre des menus ne mente jamais, et le rétablit à votre plancher de batterie, en mode Économie d'énergie, à la fin de la minuterie ou au redémarrage. Une application graphique ne peut pas saisir de mot de passe, alors l'installateur ajoute une règle sudoers au périmètre strict pour **exactement deux commandes** :
+**Keep Mac awake** maintient une assertion IOKit standard contre la veille d'inactivité. Elle ne demande aucune autorisation et macOS la libère dès que l'application se termine.
+
+**Allow lid closed** bascule `pmset disablesleep` (le drapeau `SleepDisabled` du noyau), le relit pour que la barre des menus ne mente jamais, et le rétablit à votre plancher de batterie, en mode Économie d'énergie, à la fin de la minuterie, quand Sleepless quitte ou au redémarrage. Une application graphique ne peut pas saisir de mot de passe, alors l'installateur ajoute une règle sudoers au périmètre strict pour **exactement deux commandes** :
 
 ```
 <you> ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1
 ```
 
 - **Impossible à élargir.** sudoers compare les arguments littéralement, sans jokers.
-- **Rien à détourner.** Pas de démon, pas de script auxiliaire, pas de shell. Elle appelle `/usr/bin/pmset` directement.
+- **Rien à détourner.** Pas de démon, pas d'assistant root. Elle appelle `/usr/bin/pmset` directement.
+- **Surveillance des plantages.** Tant que Allow lid closed est actif, une petite boucle shell sans privilèges surveille l'application. Si l'application meurt ou ne répond plus pendant 2 minutes, la boucle exécute `pmset -a disablesleep 0` avec la même autorisation, puis se termine.
 - **Toujours réversible.** Le redémarrage, le plancher, la minuterie ou `./uninstall.sh` (qui prouve que l'autorisation a disparu).
 
 Vérifiez un téléchargement, sans compte Apple :
@@ -144,7 +149,7 @@ Une seule autorisation `sudo` au périmètre strict (deux commandes `pmset` exac
 <details>
 <summary><b>Comment l'arrêter ou le supprimer ?</b></summary>
 
-Désactivez l'interrupteur, ou laissez la minuterie ou le plancher de batterie le faire, et la veille normale revient. Un redémarrage le réinitialise aussi. `./uninstall.sh` supprime l'application, l'élément de connexion et l'autorisation sudoers, puis prouve que l'autorisation a disparu.
+Désactivez les interrupteurs, ou laissez la minuterie ou le plancher de batterie le faire, et la veille normale revient. Un redémarrage le réinitialise aussi. `./uninstall.sh` supprime l'application, l'élément de connexion et l'autorisation sudoers, puis prouve que l'autorisation a disparu.
 </details>
 
 <details>

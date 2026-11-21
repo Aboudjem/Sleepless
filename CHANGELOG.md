@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Crash safety for lid-closed mode. Quitting, SIGTERM/SIGINT/SIGHUP, a crash, or a hang
+  of more than 2 minutes restores `pmset -a disablesleep 0`. A small unprivileged shell
+  watchdog does this with the existing grant; it runs only while lid-closed mode is on.
+
+### Changed
+- Two switches instead of one. **Keep Mac awake** blocks idle sleep with a standard IOKit
+  power assertion (no root, released when the app exits) and is on at launch, including
+  when Sleepless starts at login. **Allow lid closed** is the previous `pmset disablesleep`
+  mode, now an opt-in second switch.
+- The auto-off timer is a slider with Off / 15m / 30m / 1h / 2h / 4h / 8h.
+- The menu-bar icon shows a steaming outline cup while awake and a solid steaming cup
+  while lid-closed mode is on.
+- Redesigned popover with one card per control.
+
 ## [1.2.7] - 2026-06-03
 
 ### Changed

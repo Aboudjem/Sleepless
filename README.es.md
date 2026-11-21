@@ -18,7 +18,7 @@
 
 <p align="center">
   <b>Mantén tu MacBook despierto con la tapa cerrada, con batería y sin pantalla externa.</b><br>
-  <sub>Un interruptor en la barra de menús, con temporizador de apagado automático y corte por nivel mínimo de batería para que nunca la agotes del todo.</sub>
+  <sub>Dos interruptores en la barra de menús, con temporizador de apagado automático y corte por nivel mínimo de batería para que nunca la agotes del todo.</sub>
 </p>
 
 <p align="center">
@@ -55,21 +55,23 @@ brew install --cask aboudjem/tap/sleepless
 | **Descargar** | Coge la [última versión](https://github.com/Aboudjem/Sleepless/releases/latest), descomprímela en `/Applications` y apruébala en **Ajustes del Sistema → Privacidad y seguridad → Abrir igualmente** (está firmada de forma ad-hoc). |
 | **Compilar desde el código** | `git clone https://github.com/Aboudjem/Sleepless.git && cd Sleepless && ./install.sh` (sin aviso de Gatekeeper). |
 
-Luego haz clic en la taza de la barra de menús, activa el interruptor y cierra la tapa.
+Luego haz clic en la taza de la barra de menús, activa **Allow lid closed** y cierra la tapa.
 
 ## Características
 
 | | | |
 |---|---|---|
-| ☕ | **Un solo interruptor** | Haz clic en la taza de la barra de menús y activa el conmutador. |
-| ⏲️ | **Temporizador de apagado** | 1 h o 2 h con cuenta atrás en vivo, y luego se apaga. |
+| ☕ | **Keep Mac awake** | Activado al iniciar. Evita la suspensión por inactividad con una aserción de energía estándar, sin root. |
+| 💻 | **Allow lid closed** | Segundo interruptor opcional para `pmset disablesleep`. |
+| ⏲️ | **Temporizador de apagado** | Apagado, 15 min, 30 min, 1 h, 2 h, 4 h u 8 h con cuenta atrás en vivo, y luego se apaga. |
 | 🔋 | **Nivel mínimo de batería** | Apagado automático al 5–50 % con batería (15 % por defecto). |
 | 🪫 | **Low Power Mode** | Se hace a un lado cuando LPM está activado, con batería. |
+| 🛟 | **A prueba de fallos** | Si Sleepless se cierra, falla o se cuelga, el modo de tapa cerrada se desactiva solo. |
 | 🖥️ | **Sin adaptador** | Tapa cerrada, con batería. Sin monitor, sin enchufe HDMI. |
-| 🚀 | **Iniciar al iniciar sesión** | Opcional, desactivado por defecto, siempre arranca apagado. |
+| 🚀 | **Iniciar al iniciar sesión** | Opcional, desactivado por defecto. |
 | 🪶 | **Diminuto y nativo** | Un archivo de AppKit. Sin icono en el Dock, daemon ni kext. |
 
-**Glifo de la barra de menús:** taza vacía = apagado · taza llena = despierto · taza llena con punto = despierto con batería (apagado automático en vivo).
+**Glifo de la barra de menús:** taza sobre platillo = apagado · taza humeante = despierto · taza humeante rellena = tapa cerrada permitida · con un punto = tapa cerrada con batería (apagado automático en vivo).
 
 ## Sleepless frente a las alternativas
 
@@ -96,14 +98,17 @@ Luego haz clic en la taza de la barra de menús, activa el interruptor y cierra 
 
 ## Cómo funciona
 
-Sleepless activa `pmset disablesleep` (el indicador `SleepDisabled` del kernel), vuelve a leerlo para que la barra de menús nunca mienta, y lo revierte en tu nivel mínimo de batería, en Low Power Mode, cuando el temporizador termina o al reiniciar. Una app gráfica no puede escribir una contraseña, así que el instalador añade una regla de sudoers de alcance reducido para **exactamente dos comandos**:
+**Keep Mac awake** mantiene una aserción estándar de IOKit contra la suspensión por inactividad. No necesita permisos y macOS la libera en cuanto la app termina.
+
+**Allow lid closed** activa `pmset disablesleep` (el indicador `SleepDisabled` del kernel), vuelve a leerlo para que la barra de menús nunca mienta, y lo revierte en tu nivel mínimo de batería, en Low Power Mode, cuando el temporizador termina, al cerrar Sleepless o al reiniciar. Una app gráfica no puede escribir una contraseña, así que el instalador añade una regla de sudoers de alcance reducido para **exactamente dos comandos**:
 
 ```
 <you> ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1
 ```
 
 - **No se puede ampliar.** sudoers coincide con los argumentos de forma literal, sin comodines.
-- **Nada que secuestrar.** Sin daemon, sin script auxiliar, sin shell. Llama directamente a `/usr/bin/pmset`.
+- **Nada que secuestrar.** Sin daemon ni ayudante con root. Llama directamente a `/usr/bin/pmset`.
+- **Vigilante de fallos.** Mientras Allow lid closed está activo, un pequeño bucle de shell sin privilegios vigila la app. Si la app muere o deja de responder durante 2 minutos, ejecuta `pmset -a disablesleep 0` con el mismo permiso y termina.
 - **Siempre reversible.** Un reinicio, el nivel mínimo, el temporizador o `./uninstall.sh` (que demuestra que el permiso ha desaparecido).
 
 Verifica una descarga, sin necesidad de cuenta de Apple:
@@ -144,7 +149,7 @@ Un único permiso `sudo` de alcance reducido (dos comandos `pmset` exactos) para
 <details>
 <summary><b>¿cómo lo detengo o lo elimino?</b></summary>
 
-Desactiva el interruptor, o deja que el temporizador o el nivel mínimo de batería lo hagan, y el sueño normal vuelve. Un reinicio también lo restablece. `./uninstall.sh` elimina la app, el elemento de inicio de sesión y el permiso de sudoers, y luego demuestra que el permiso ha desaparecido.
+Desactiva los interruptores, o deja que el temporizador o el nivel mínimo de batería lo hagan, y el sueño normal vuelve. Un reinicio también lo restablece. `./uninstall.sh` elimina la app, el elemento de inicio de sesión y el permiso de sudoers, y luego demuestra que el permiso ha desaparecido.
 </details>
 
 <details>

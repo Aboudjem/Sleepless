@@ -54,10 +54,18 @@ Consequences you can rely on:
 - `sudo pmset -a sleep 0`, `sudo pmset restoredefaults`, `sudo pmset -a hibernatemode 0`,
   or any other argument vector **do not match** the rule and will demand a password. The
   grant cannot be widened by appending flags.
-- Sleepless calls `sudo` with an **argv array**, not a shell string
-  (`Process.arguments` in `App.swift`), so there is no `/bin/sh -c`, no command
-  substitution, and no word-splitting surface inside the app.
-- There is **no helper script**. The classic sudoers footgun is a *user-writable* script
+- The app calls `sudo` with an **argv array**, not a shell string
+  (`Process.arguments` in `App.swift`), so that call has no word-splitting surface.
+- The crash watchdog is the one shell the app keeps running. While lid-closed mode is on, the app starts a
+  `/bin/sh -c` loop from a script compiled into the binary. The process ID and lease path
+  are passed as positional arguments, never spliced into the script. It runs as your user,
+  and the only privileged command it can run is `sudo -n /usr/bin/pmset -a disablesleep 0`,
+  the off half of the same grant. It exits when the app removes its lease file, or after
+  restoring sleep.
+- The one-time setup is the other shell. The first time you turn on lid closed without the
+  grant, the app runs the bundled `grant.sh` as root through `osascript … with administrator
+  privileges`, after macOS asks you to authenticate. It only installs the sudoers drop-in.
+- The sudoers rule points at **no helper script**. The classic sudoers footgun is a *user-writable* script
   that root executes — rewrite it, get root. Sleepless points the rule directly at Apple's
   `/usr/bin/pmset`, and the sudoers file itself is `root:wheel 0440` (you cannot modify it
   without `sudo`). Both mitigations are exactly what the literature prescribes.
@@ -81,7 +89,8 @@ reboot, then `pmset -g | grep SleepDisabled` should read `0`.
 
 Sleepless adds a second belt-and-suspenders: a **battery-floor auto-off** (default 15%)
 that flips the flag back to `0` while the Mac is awake and discharging, so a forgotten
-"on" state can't drain the battery to empty.
+"on" state can't drain the battery to empty. If the app crashes, or hangs for 2 minutes,
+while lid-closed mode is on, the watchdog above flips it back to `0` as well.
 
 ## Code signing, notarization, and Gatekeeper
 
