@@ -20,7 +20,7 @@
 
 <p align="center">
   <b>合盖、使用电池、没有外接显示器，照样让 MacBook 保持唤醒。</b><br>
-  <sub>一个菜单栏开关，配自动关闭定时器和电量下限截止，让你永远不会把电耗光。</sub>
+  <sub>两个菜单栏开关，配自动关闭定时器和电量下限截止，让你永远不会把电耗光。</sub>
 </p>
 
 <p align="center">
@@ -57,21 +57,27 @@ brew install --cask aboudjem/tap/sleepless
 | **直接下载** | 获取[最新发布版本](https://github.com/Aboudjem/Sleepless/releases/latest)，解压到 `/Applications`，然后在 **系统设置 → 隐私与安全性 → 仍要打开** 里批准它（它是临时签名 ad-hoc）。 |
 | **从源码构建** | `git clone https://github.com/Aboudjem/Sleepless.git && cd Sleepless && ./install.sh`（不会有 Gatekeeper 提示）。 |
 
-然后点击菜单栏里的咖啡杯，拨动开关，合上盖子。
+然后点击菜单栏里的咖啡杯，打开 **Allow lid closed**，合上盖子。
 
 ## 功能特性
 
 | | | |
 |---|---|---|
-| ☕ | **一个开关** | 点击菜单栏里的咖啡杯，拨动开关。 |
-| ⏲️ | **自动关闭定时器** | 1 小时或 2 小时，带实时倒计时，到点关闭。 |
+| ☕ | **Keep Mac awake** | 启动即开启。用标准电源断言阻止空闲睡眠，无需 root。 |
+| 💻 | **Allow lid closed** | 可选的第二个开关，用于 `pmset disablesleep`。 |
+| ⏲️ | **自动关闭定时器** | 关闭、15 分钟、30 分钟、1、2、4 或 8 小时，带实时倒计时，到点关闭。 |
 | 🔋 | **电量下限** | 电池供电时在 5–50% 自动关闭（默认 15%）。 |
+| 🌡️ | **温度保护** | 达到 SoC 温度上限（60–95 °C，默认 80 °C）或 macOS 热状态（默认 Serious）时自动关闭。显示 30 分钟温度曲线。 |
 | 🪫 | **Low Power Mode** | 电池供电下若 LPM 开启，自动让位。 |
+| 🛟 | **崩溃保护** | Sleepless 退出、崩溃或卡死时，合盖模式会自动关闭。 |
 | 🖥️ | **无需转接** | 合盖、电池供电即可。不用显示器，不用 HDMI 插头。 |
-| 🚀 | **登录时启动** | 可选，默认关闭，始终以关闭状态启动。 |
+| 🚀 | **登录时启动** | 可选，默认关闭。 |
 | 🪶 | **小巧且原生** | 一个 AppKit 文件。无 Dock 图标、守护进程或 kext。 |
 
-**菜单栏图标：** 空杯 = 关闭 · 满杯 = 唤醒 · 满杯加一个点 = 电池供电下唤醒（自动关闭生效中）。
+**菜单栏图标：** 杯子放在杯碟上 = 关闭 · 冒热气的杯子 = 唤醒 · 实心冒热气的杯子 = 允许合盖 · 再加一个点 = 电池供电下合盖（自动关闭生效中）。
+
+> [!WARNING]
+> 温度保护只是尽力而为的安全网，不是保证。通风和安全的上限由你自己负责：千万别在包里或柔软表面上合盖运行。在弹出窗口里把鼠标悬停在风险标签上可查看详情。
 
 ## Sleepless 与其他方案对比
 
@@ -98,14 +104,17 @@ brew install --cask aboudjem/tap/sleepless
 
 ## 工作原理
 
-Sleepless 切换 `pmset disablesleep`（内核的 `SleepDisabled` 标志），把它读回来让菜单栏绝不撒谎，并在到达你的电量下限、进入 Low Power Mode、定时器结束或重启时把它还原。GUI 应用没法输入密码，所以安装程序会加一条范围严格限定的 sudoers 规则，**只允许两条命令**：
+**Keep Mac awake** 持有一个标准的 IOKit 空闲睡眠断言，无需任何权限，应用一退出 macOS 就会释放它。
+
+**Allow lid closed** 切换 `pmset disablesleep`（内核的 `SleepDisabled` 标志），把它读回来让菜单栏绝不撒谎，并在到达你的电量下限或温度上限、进入 Low Power Mode、定时器结束、Sleepless 退出或重启时把它还原。GUI 应用没法输入密码，所以安装程序会加一条范围严格限定的 sudoers 规则，**只允许两条命令**：
 
 ```
 <you> ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1
 ```
 
 - **无法被放宽。** sudoers 按字面匹配参数，没有通配符。
-- **没有可劫持的东西。** 没有守护进程、辅助脚本或 shell。它直接调用 `/usr/bin/pmset`。
+- **没有可劫持的东西。** 没有守护进程，也没有 root 辅助程序。它直接调用 `/usr/bin/pmset`。
+- **崩溃看门狗。** Allow lid closed 开启期间，一个无特权的小 shell 循环会盯着应用。应用一旦退出或 2 分钟无响应，它就用同一条授权执行 `pmset -a disablesleep 0`，然后退出。
 - **始终可逆。** 重启、电量下限、定时器，或 `./uninstall.sh`（它会证明授权已经清除）。
 
 验证一个下载，无需 Apple 账户：
@@ -134,7 +143,7 @@ gh attestation verify Sleepless-*.zip -R Aboudjem/Sleepless
 <details>
 <summary><b>合盖运行安全吗？会过热或耗光电池吗？</b></summary>
 
-对于下载、同步、共享热点这类轻量、无人看管的任务来说是安全的。完全合盖下长时间高负载会限制散热气流，所以请自己掂量。电量下限、Low Power Mode 自动关闭和定时器都会在 Mac 电量见底之前把它停下来。
+对于下载、同步、共享热点这类轻量、无人看管的任务来说是安全的。完全合盖下长时间高负载会限制散热气流，所以请自己掂量。电量下限、温度上限、Low Power Mode 自动关闭和定时器都会在 Mac 电量见底或过热之前把它停下来。这些都是尽力而为，通风要靠你自己负责。
 </details>
 
 <details>
@@ -146,7 +155,7 @@ gh attestation verify Sleepless-*.zip -R Aboudjem/Sleepless
 <details>
 <summary><b>怎样停止它或移除它？</b></summary>
 
-把开关关掉，或者让定时器或电量下限替你关掉它，正常睡眠就会恢复。重启同样会把它重置。`./uninstall.sh` 会移除应用、登录项和 sudoers 授权，然后证明授权已经清除。
+把开关都关掉，或者让定时器或电量下限替你关掉它，正常睡眠就会恢复。重启同样会把它重置。`./uninstall.sh` 会移除应用、登录项和 sudoers 授权，然后证明授权已经清除。
 </details>
 
 <details>
