@@ -18,7 +18,7 @@
 
 <p align="center">
   <b>Halte dein MacBook bei geschlossenem Deckel wach, im Akkubetrieb, ohne externen Bildschirm.</b><br>
-  <sub>Ein Schalter in der Menüleiste, mit Abschalt-Timer und Abschaltung bei Akku-Mindeststand, damit du ihn nie ganz leerziehst.</sub>
+  <sub>Zwei Schalter in der Menüleiste, mit Abschalt-Timer und Abschaltung bei Akku-Mindeststand, damit du ihn nie ganz leerziehst.</sub>
 </p>
 
 <p align="center">
@@ -55,21 +55,22 @@ brew install --cask aboudjem/tap/sleepless
 | **Herunterladen** | Hol dir das [latest release](https://github.com/Aboudjem/Sleepless/releases/latest), entpacke es nach `/Applications` und bestätige es dann unter **Systemeinstellungen → Datenschutz & Sicherheit → Trotzdem öffnen** (es ist ad-hoc signiert). |
 | **Aus dem Quellcode bauen** | `git clone https://github.com/Aboudjem/Sleepless.git && cd Sleepless && ./install.sh` (kein Gatekeeper-Hinweis). |
 
-Klicke dann auf die Tasse in der Menüleiste, lege den Schalter um und schließe den Deckel.
+Klicke dann auf die Tasse in der Menüleiste, schalte **Allow lid closed** ein und schließe den Deckel.
 
 ## Funktionen
 
 | | | |
 |---|---|---|
-| ☕ | **Ein Schalter** | Klicke auf die Tasse in der Menüleiste, lege den Schalter um. |
-| ⏲️ | **Abschalt-Timer** | 1 h oder 2 h mit laufendem Countdown, danach aus. |
+| ☕ | **Keep Mac awake** | Beim Start an. Verhindert den Ruhezustand im Leerlauf per Standard-Power-Assertion, ohne Root. |
+| 💻 | **Allow lid closed** | Optionaler zweiter Schalter für `pmset disablesleep`. |
+| ⏲️ | **Abschalt-Timer** | Aus, 15 min, 30 min, 1 h, 2 h, 4 h oder 8 h mit laufendem Countdown, danach aus. |
 | 🔋 | **Akku-Mindeststand** | Auto-Abschaltung bei 5–50 % im Akkubetrieb (Standard 15 %). |
 | 🪫 | **Low Power Mode** | Tritt zur Seite, wenn LPM im Akkubetrieb aktiv ist. |
 | 🖥️ | **Kein Dongle** | Deckel geschlossen, im Akkubetrieb. Kein Monitor, kein HDMI-Stecker. |
-| 🚀 | **Beim Anmelden starten** | Optional, standardmäßig aus, startet immer ausgeschaltet. |
+| 🚀 | **Beim Anmelden starten** | Optional, standardmäßig aus. |
 | 🪶 | **Winzig und nativ** | Eine AppKit-Datei. Kein Dock-Symbol, kein Daemon, keine kext. |
 
-**Menüleisten-Glyph:** leere Tasse = aus · volle Tasse = wach · volle Tasse mit Punkt = wach im Akkubetrieb (Auto-Abschaltung aktiv).
+**Menüleisten-Glyph:** Tasse auf Untertasse = aus · dampfende Tasse = wach · gefüllte dampfende Tasse = Deckel geschlossen erlaubt · dazu ein Punkt = Deckel geschlossen im Akkubetrieb (Auto-Abschaltung aktiv).
 
 ## Sleepless im Vergleich zu den Alternativen
 
@@ -96,7 +97,9 @@ Klicke dann auf die Tasse in der Menüleiste, lege den Schalter um und schließe
 
 ## So funktioniert es
 
-Sleepless schaltet `pmset disablesleep` um (das `SleepDisabled`-Flag des Kernels), liest es zurück, sodass die Menüleiste nie lügt, und setzt es bei deinem Akku-Mindeststand, im Low Power Mode, beim Ablaufen des Timers oder beim Neustart zurück. Eine GUI-App kann kein Passwort eintippen, deshalb fügt das Installationsprogramm eine eng gefasste sudoers-Regel für **genau zwei Befehle** hinzu:
+**Keep Mac awake** hält eine normale IOKit-Assertion gegen den Ruhezustand im Leerlauf. Sie braucht keine Berechtigung, und macOS gibt sie frei, sobald die App endet.
+
+**Allow lid closed** schaltet `pmset disablesleep` um (das `SleepDisabled`-Flag des Kernels), liest es zurück, sodass die Menüleiste nie lügt, und setzt es bei deinem Akku-Mindeststand, im Low Power Mode, beim Ablaufen des Timers oder beim Neustart zurück. Eine GUI-App kann kein Passwort eintippen, deshalb fügt das Installationsprogramm eine eng gefasste sudoers-Regel für **genau zwei Befehle** hinzu:
 
 ```
 <you> ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1
@@ -144,7 +147,7 @@ Eine eng gefasste `sudo`-Berechtigung (zwei exakte `pmset`-Befehle), damit eine 
 <details>
 <summary><b>Wie stoppe oder entferne ich es?</b></summary>
 
-Leg den Schalter auf aus, oder lass den Timer oder den Akku-Mindeststand abschalten, und der normale Ruhezustand kehrt zurück. Ein Neustart setzt es ebenfalls zurück. `./uninstall.sh` entfernt die App, den Anmelde-Eintrag und die sudoers-Berechtigung und belegt dann, dass die Berechtigung weg ist.
+Leg die Schalter auf aus, oder lass den Timer oder den Akku-Mindeststand abschalten, und der normale Ruhezustand kehrt zurück. Ein Neustart setzt es ebenfalls zurück. `./uninstall.sh` entfernt die App, den Anmelde-Eintrag und die sudoers-Berechtigung und belegt dann, dass die Berechtigung weg ist.
 </details>
 
 <details>
