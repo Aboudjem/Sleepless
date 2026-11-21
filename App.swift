@@ -11,10 +11,12 @@
 //     READ (no root): pmset -g | grep -i SleepDisabled  (value 1 = ON; 0/absent = OFF)
 //   disablesleep is runtime-only and resets to 0 on reboot; the app never auto re-arms it.
 //
-// Fail-safe protections layer on top, with no background daemon:
+// Fail-safe protections layer on top (no root daemon):
 //   1. Auto-off timer (Off / 15m / 30m / 1h / 2h / 4h / 8h) — one-shot in-memory Timer.
 //   2. Battery-floor cutoff (5%–50%, default 15%) — always wins on battery.
 //   3. Low-Power-Mode auto-off — on battery, steps aside unless forced on this session.
+//   4. Crash safety: signal handlers plus a detached, unprivileged watchdog loop that
+//      restores `disablesleep 0` if the app dies or its lease goes stale for 2 minutes.
 //
 // Build: Command Line Tools `swiftc`, NO Xcode project.
 //   swiftc -O -parse-as-library -target arm64-apple-macos26.0 -framework AppKit \
@@ -35,6 +37,8 @@ private let timerStopMinutes = [0, 15, 30, 60, 120, 240, 480]
 private let timerStopLabels = ["Off", "15m", "30m", "1h", "2h", "4h", "8h"]
 
 private let lastStopKey = "lastStopReason"
+private let leaseRefreshInterval: TimeInterval = 30
+private let leaseMaxAgeSeconds = 120                                     // 2-minute freeze watchdog
 
 // MARK: - Menu-bar coffee glyph (native SF Symbols, MONOCHROME template — state by SHAPE)
 enum SleepGlyph {
@@ -127,6 +131,9 @@ private final class HairlineView: NSView {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var timer: Timer?
+    private var leaseTimer: Timer?
+    private var signalSources: [DispatchSourceSignal] = []
+    private var ownsLidDisable = false       // true when THIS process enabled pmset disablesleep
 
     private let offGlyph = makeCupGlyph(.off)
     private let awakeGlyph = makeCupGlyph(.awake)
@@ -190,6 +197,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         popover.contentViewController = makeContentController()
 
         // Default ON: prevent idle sleep immediately on launch (unless a safety net blocks it).
+        installSignalHandlers()
         if safetyBlockReason() == nil {
             setIdleAssertion(true)
         } else {
@@ -199,6 +207,94 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         refresh()   // sync lid-closed state + enforce safety nets on launch
         timer = Timer.scheduledTimer(timeInterval: pollInterval, target: self,
                                      selector: #selector(poll), userInfo: nil, repeats: true)
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        releaseOwnedSleepOnExit()
+    }
+
+    // MARK: - Crash Safety: Signal Handlers + Detached 2-Minute Lease Watchdog
+    private var leaseFileURL: URL {
+        let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("Sleepless", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent("lid-lease")
+    }
+
+    private func installSignalHandlers() {
+        for sig in [SIGTERM, SIGINT, SIGHUP] {
+            signal(sig, SIG_IGN)
+            let src = DispatchSource.makeSignalSource(signal: sig, queue: .main)
+            src.setEventHandler { [weak self] in
+                self?.releaseOwnedSleepOnExit()
+                exit(0)
+            }
+            src.resume()
+            signalSources.append(src)
+        }
+    }
+
+    private func releaseOwnedSleepOnExit() {
+        setIdleAssertion(false)
+        stopLeaseWatchdog()
+        if ownsLidDisable {
+            _ = setDisableSleep(false)
+            ownsLidDisable = false
+        }
+    }
+
+    private func writeLeaseTimestamp() {
+        let ts = "\(Int(Date().timeIntervalSince1970))\n"
+        try? ts.write(to: leaseFileURL, atomically: true, encoding: .utf8)
+    }
+
+    private func startLeaseWatchdog() {
+        writeLeaseTimestamp()
+        if leaseTimer == nil {
+            leaseTimer = Timer.scheduledTimer(timeInterval: leaseRefreshInterval, target: self,
+                                              selector: #selector(refreshLeaseTick), userInfo: nil, repeats: true)
+        }
+        // Spawn a detached user-space watchdog (no root daemon, no extra sudoers rules).
+        // If Sleepless crashes (kill -0 fails) or hangs (>120s stale lease), it restores
+        // pmset disablesleep 0 using the existing scoped NOPASSWD grant and exits.
+        let pid = ProcessInfo.processInfo.processIdentifier
+        let leasePath = leaseFileURL.path
+        let script = """
+        PID="$1"; LEASE="$2"; MAX_AGE=\(leaseMaxAgeSeconds)
+        while [ -f "$LEASE" ]; do
+          if ! /bin/kill -0 "$PID" 2>/dev/null; then
+            /usr/bin/sudo -n /usr/bin/pmset -a disablesleep 0 >/dev/null 2>&1
+            /bin/rm -f "$LEASE"
+            exit 0
+          fi
+          NOW=$(/bin/date +%s)
+          TS=$(/bin/cat "$LEASE" 2>/dev/null || echo 0)
+          if [ $((NOW - TS)) -gt "$MAX_AGE" ]; then
+            /usr/bin/sudo -n /usr/bin/pmset -a disablesleep 0 >/dev/null 2>&1
+            /bin/rm -f "$LEASE"
+            exit 0
+          fi
+          /bin/sleep 5
+        done
+        """
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: "/bin/sh")
+        proc.arguments = ["-c", script, "sleepless-watchdog", "\(pid)", leasePath]
+        proc.standardInput = FileHandle.nullDevice
+        proc.standardOutput = FileHandle.nullDevice
+        proc.standardError = FileHandle.nullDevice
+        do { try proc.run() }
+        catch { NSLog("Sleepless: failed to launch watchdog: %@", error.localizedDescription) }
+    }
+
+    @objc private func refreshLeaseTick() {
+        guard ownsLidDisable else { stopLeaseWatchdog(); return }
+        writeLeaseTimestamp()
+    }
+
+    private func stopLeaseWatchdog() {
+        leaseTimer?.invalidate(); leaseTimer = nil
+        try? FileManager.default.removeItem(at: leaseFileURL)
     }
 
     // MARK: - Popover UI (Modern Liquid Glass + Unified Slider Cards)
@@ -471,7 +567,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             // Turning master OFF also turns off lid-closed sleep prevention.
             setIdleAssertion(false)
-            if lidClosedOn { _ = setDisableSleep(false) }
+            if lidClosedOn || ownsLidDisable {
+                _ = setDisableSleep(false)
+                ownsLidDisable = false
+                stopLeaseWatchdog()
+            }
             userForcedOn = false
             cancelKeepAwakeTimer()
             refresh()
@@ -500,8 +600,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if wantOn, result == .ok {
             UserDefaults.standard.removeObject(forKey: lastStopKey)
+            ownsLidDisable = true
+            startLeaseWatchdog()
             setIdleAssertion(true)
             userForcedOn = true
+        } else if !wantOn, result == .ok {
+            ownsLidDisable = false
+            stopLeaseWatchdog()
         }
         refresh()
         if anyAwake, autoOffMinutes > 0, keepAwakeTimer == nil {
@@ -514,7 +619,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func turnEverythingOff(reason: String? = nil) {
         setIdleAssertion(false)
-        if readSleepDisabled() { _ = setDisableSleep(false) }
+        if ownsLidDisable || readSleepDisabled() { _ = setDisableSleep(false) }
+        ownsLidDisable = false
+        stopLeaseWatchdog()
         userForcedOn = false
         cancelKeepAwakeTimer()
         if let reason {

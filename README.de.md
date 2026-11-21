@@ -66,6 +66,7 @@ Klicke dann auf die Tasse in der Menüleiste, schalte **Allow lid closed** ein u
 | ⏲️ | **Abschalt-Timer** | Aus, 15 min, 30 min, 1 h, 2 h, 4 h oder 8 h mit laufendem Countdown, danach aus. |
 | 🔋 | **Akku-Mindeststand** | Auto-Abschaltung bei 5–50 % im Akkubetrieb (Standard 15 %). |
 | 🪫 | **Low Power Mode** | Tritt zur Seite, wenn LPM im Akkubetrieb aktiv ist. |
+| 🛟 | **Absturzsicher** | Beendet sich Sleepless, stürzt es ab oder hängt es, schaltet sich der Deckel-zu-Modus wieder aus. |
 | 🖥️ | **Kein Dongle** | Deckel geschlossen, im Akkubetrieb. Kein Monitor, kein HDMI-Stecker. |
 | 🚀 | **Beim Anmelden starten** | Optional, standardmäßig aus. |
 | 🪶 | **Winzig und nativ** | Eine AppKit-Datei. Kein Dock-Symbol, kein Daemon, keine kext. |
@@ -99,14 +100,15 @@ Klicke dann auf die Tasse in der Menüleiste, schalte **Allow lid closed** ein u
 
 **Keep Mac awake** hält eine normale IOKit-Assertion gegen den Ruhezustand im Leerlauf. Sie braucht keine Berechtigung, und macOS gibt sie frei, sobald die App endet.
 
-**Allow lid closed** schaltet `pmset disablesleep` um (das `SleepDisabled`-Flag des Kernels), liest es zurück, sodass die Menüleiste nie lügt, und setzt es bei deinem Akku-Mindeststand, im Low Power Mode, beim Ablaufen des Timers oder beim Neustart zurück. Eine GUI-App kann kein Passwort eintippen, deshalb fügt das Installationsprogramm eine eng gefasste sudoers-Regel für **genau zwei Befehle** hinzu:
+**Allow lid closed** schaltet `pmset disablesleep` um (das `SleepDisabled`-Flag des Kernels), liest es zurück, sodass die Menüleiste nie lügt, und setzt es bei deinem Akku-Mindeststand, im Low Power Mode, beim Ablaufen des Timers, beim Beenden von Sleepless oder beim Neustart zurück. Eine GUI-App kann kein Passwort eintippen, deshalb fügt das Installationsprogramm eine eng gefasste sudoers-Regel für **genau zwei Befehle** hinzu:
 
 ```
 <you> ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1
 ```
 
 - **Lässt sich nicht ausweiten.** sudoers gleicht Argumente wörtlich ab, ohne Platzhalter.
-- **Nichts zum Kapern.** Kein Daemon, kein Hilfsskript, keine Shell. Es ruft `/usr/bin/pmset` direkt auf.
+- **Nichts zum Kapern.** Kein Daemon, kein Root-Helfer. Es ruft `/usr/bin/pmset` direkt auf.
+- **Absturz-Wächter.** Solange Allow lid closed aktiv ist, überwacht eine kleine Shell-Schleife ohne Root-Rechte die App. Stirbt die App oder reagiert sie 2 Minuten lang nicht, führt die Schleife mit derselben Berechtigung `pmset -a disablesleep 0` aus und beendet sich.
 - **Immer reversibel.** Neustart, der Mindeststand, der Timer oder `./uninstall.sh` (das belegt, dass die Berechtigung weg ist).
 
 Einen Download überprüfen, kein Apple-Konto nötig:

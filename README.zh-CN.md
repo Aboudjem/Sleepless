@@ -68,6 +68,7 @@ brew install --cask aboudjem/tap/sleepless
 | ⏲️ | **自动关闭定时器** | 关闭、15 分钟、30 分钟、1、2、4 或 8 小时，带实时倒计时，到点关闭。 |
 | 🔋 | **电量下限** | 电池供电时在 5–50% 自动关闭（默认 15%）。 |
 | 🪫 | **Low Power Mode** | 电池供电下若 LPM 开启，自动让位。 |
+| 🛟 | **崩溃保护** | Sleepless 退出、崩溃或卡死时，合盖模式会自动关闭。 |
 | 🖥️ | **无需转接** | 合盖、电池供电即可。不用显示器，不用 HDMI 插头。 |
 | 🚀 | **登录时启动** | 可选，默认关闭。 |
 | 🪶 | **小巧且原生** | 一个 AppKit 文件。无 Dock 图标、守护进程或 kext。 |
@@ -101,14 +102,15 @@ brew install --cask aboudjem/tap/sleepless
 
 **Keep Mac awake** 持有一个标准的 IOKit 空闲睡眠断言，无需任何权限，应用一退出 macOS 就会释放它。
 
-**Allow lid closed** 切换 `pmset disablesleep`（内核的 `SleepDisabled` 标志），把它读回来让菜单栏绝不撒谎，并在到达你的电量下限、进入 Low Power Mode、定时器结束或重启时把它还原。GUI 应用没法输入密码，所以安装程序会加一条范围严格限定的 sudoers 规则，**只允许两条命令**：
+**Allow lid closed** 切换 `pmset disablesleep`（内核的 `SleepDisabled` 标志），把它读回来让菜单栏绝不撒谎，并在到达你的电量下限、进入 Low Power Mode、定时器结束、Sleepless 退出或重启时把它还原。GUI 应用没法输入密码，所以安装程序会加一条范围严格限定的 sudoers 规则，**只允许两条命令**：
 
 ```
 <you> ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1
 ```
 
 - **无法被放宽。** sudoers 按字面匹配参数，没有通配符。
-- **没有可劫持的东西。** 没有守护进程、辅助脚本或 shell。它直接调用 `/usr/bin/pmset`。
+- **没有可劫持的东西。** 没有守护进程，也没有 root 辅助程序。它直接调用 `/usr/bin/pmset`。
+- **崩溃看门狗。** Allow lid closed 开启期间，一个无特权的小 shell 循环会盯着应用。应用一旦退出或 2 分钟无响应，它就用同一条授权执行 `pmset -a disablesleep 0`，然后退出。
 - **始终可逆。** 重启、电量下限、定时器，或 `./uninstall.sh`（它会证明授权已经清除）。
 
 验证一个下载，无需 Apple 账户：

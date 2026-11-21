@@ -66,6 +66,7 @@ Cliquez ensuite sur la tasse dans la barre des menus, activez **Allow lid closed
 | ⏲️ | **Minuterie d'extinction automatique** | Arrêt, 15 min, 30 min, 1 h, 2 h, 4 h ou 8 h avec compte à rebours en direct, puis extinction. |
 | 🔋 | **Plancher de batterie** | Extinction automatique entre 5 et 50 % sur batterie (15 % par défaut). |
 | 🪫 | **Mode Économie d'énergie** | S'efface quand le mode Économie d'énergie est actif, sur batterie. |
+| 🛟 | **Résistant aux plantages** | Si Sleepless quitte, plante ou se fige, le mode capot fermé se désactive tout seul. |
 | 🖥️ | **Sans dongle** | Capot fermé, sur batterie. Sans moniteur, sans fiche HDMI. |
 | 🚀 | **Lancer à l'ouverture de session** | Optionnel, désactivé par défaut. |
 | 🪶 | **Minuscule et native** | Un seul fichier AppKit. Sans icône dans le Dock, démon ni kext. |
@@ -99,14 +100,15 @@ Cliquez ensuite sur la tasse dans la barre des menus, activez **Allow lid closed
 
 **Keep Mac awake** maintient une assertion IOKit standard contre la veille d'inactivité. Elle ne demande aucune autorisation et macOS la libère dès que l'application se termine.
 
-**Allow lid closed** bascule `pmset disablesleep` (le drapeau `SleepDisabled` du noyau), le relit pour que la barre des menus ne mente jamais, et le rétablit à votre plancher de batterie, en mode Économie d'énergie, à la fin de la minuterie ou au redémarrage. Une application graphique ne peut pas saisir de mot de passe, alors l'installateur ajoute une règle sudoers au périmètre strict pour **exactement deux commandes** :
+**Allow lid closed** bascule `pmset disablesleep` (le drapeau `SleepDisabled` du noyau), le relit pour que la barre des menus ne mente jamais, et le rétablit à votre plancher de batterie, en mode Économie d'énergie, à la fin de la minuterie, quand Sleepless quitte ou au redémarrage. Une application graphique ne peut pas saisir de mot de passe, alors l'installateur ajoute une règle sudoers au périmètre strict pour **exactement deux commandes** :
 
 ```
 <you> ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1
 ```
 
 - **Impossible à élargir.** sudoers compare les arguments littéralement, sans jokers.
-- **Rien à détourner.** Pas de démon, pas de script auxiliaire, pas de shell. Elle appelle `/usr/bin/pmset` directement.
+- **Rien à détourner.** Pas de démon, pas d'assistant root. Elle appelle `/usr/bin/pmset` directement.
+- **Surveillance des plantages.** Tant que Allow lid closed est actif, une petite boucle shell sans privilèges surveille l'application. Si l'application meurt ou ne répond plus pendant 2 minutes, la boucle exécute `pmset -a disablesleep 0` avec la même autorisation, puis se termine.
 - **Toujours réversible.** Le redémarrage, le plancher, la minuterie ou `./uninstall.sh` (qui prouve que l'autorisation a disparu).
 
 Vérifiez un téléchargement, sans compte Apple :

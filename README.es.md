@@ -66,6 +66,7 @@ Luego haz clic en la taza de la barra de menús, activa **Allow lid closed** y c
 | ⏲️ | **Temporizador de apagado** | Apagado, 15 min, 30 min, 1 h, 2 h, 4 h u 8 h con cuenta atrás en vivo, y luego se apaga. |
 | 🔋 | **Nivel mínimo de batería** | Apagado automático al 5–50 % con batería (15 % por defecto). |
 | 🪫 | **Low Power Mode** | Se hace a un lado cuando LPM está activado, con batería. |
+| 🛟 | **A prueba de fallos** | Si Sleepless se cierra, falla o se cuelga, el modo de tapa cerrada se desactiva solo. |
 | 🖥️ | **Sin adaptador** | Tapa cerrada, con batería. Sin monitor, sin enchufe HDMI. |
 | 🚀 | **Iniciar al iniciar sesión** | Opcional, desactivado por defecto. |
 | 🪶 | **Diminuto y nativo** | Un archivo de AppKit. Sin icono en el Dock, daemon ni kext. |
@@ -99,14 +100,15 @@ Luego haz clic en la taza de la barra de menús, activa **Allow lid closed** y c
 
 **Keep Mac awake** mantiene una aserción estándar de IOKit contra la suspensión por inactividad. No necesita permisos y macOS la libera en cuanto la app termina.
 
-**Allow lid closed** activa `pmset disablesleep` (el indicador `SleepDisabled` del kernel), vuelve a leerlo para que la barra de menús nunca mienta, y lo revierte en tu nivel mínimo de batería, en Low Power Mode, cuando el temporizador termina o al reiniciar. Una app gráfica no puede escribir una contraseña, así que el instalador añade una regla de sudoers de alcance reducido para **exactamente dos comandos**:
+**Allow lid closed** activa `pmset disablesleep` (el indicador `SleepDisabled` del kernel), vuelve a leerlo para que la barra de menús nunca mienta, y lo revierte en tu nivel mínimo de batería, en Low Power Mode, cuando el temporizador termina, al cerrar Sleepless o al reiniciar. Una app gráfica no puede escribir una contraseña, así que el instalador añade una regla de sudoers de alcance reducido para **exactamente dos comandos**:
 
 ```
 <you> ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1
 ```
 
 - **No se puede ampliar.** sudoers coincide con los argumentos de forma literal, sin comodines.
-- **Nada que secuestrar.** Sin daemon, sin script auxiliar, sin shell. Llama directamente a `/usr/bin/pmset`.
+- **Nada que secuestrar.** Sin daemon ni ayudante con root. Llama directamente a `/usr/bin/pmset`.
+- **Vigilante de fallos.** Mientras Allow lid closed está activo, un pequeño bucle de shell sin privilegios vigila la app. Si la app muere o deja de responder durante 2 minutos, ejecuta `pmset -a disablesleep 0` con el mismo permiso y termina.
 - **Siempre reversible.** Un reinicio, el nivel mínimo, el temporizador o `./uninstall.sh` (que demuestra que el permiso ha desaparecido).
 
 Verifica una descarga, sin necesidad de cuenta de Apple:

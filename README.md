@@ -66,6 +66,7 @@ Then click the cup in the menu bar, turn on **Allow lid closed**, and close the 
 | ⏲️ | **Auto-off timer** | Off, 15m, 30m, 1h, 2h, 4h or 8h with a live countdown, then off. |
 | 🔋 | **Battery floor** | Auto-off at 5–50% on battery (default 15%). |
 | 🪫 | **Low Power Mode** | Steps aside when LPM is on, on battery. |
+| 🛟 | **Crash-safe** | If Sleepless quits, crashes or hangs, lid-closed mode turns itself back off. |
 | 🖥️ | **No dongle** | Lid closed, on battery. No monitor, no HDMI plug. |
 | 🚀 | **Launch at login** | Optional, off by default. |
 | 🪶 | **Tiny + native** | One AppKit file. No Dock icon, daemon, or kext. |
@@ -99,14 +100,15 @@ Then click the cup in the menu bar, turn on **Allow lid closed**, and close the 
 
 **Keep Mac awake** holds a standard IOKit idle-sleep assertion, which needs no permission and macOS drops the moment the app exits.
 
-**Allow lid closed** toggles `pmset disablesleep` (the kernel's `SleepDisabled` flag), reads it back so the menu bar never lies, and reverts it at your battery floor, in Low Power Mode, when the timer ends, or on reboot. A GUI app can't type a password, so the installer adds a scoped sudoers rule for **exactly two commands**:
+**Allow lid closed** toggles `pmset disablesleep` (the kernel's `SleepDisabled` flag), reads it back so the menu bar never lies, and reverts it at your battery floor, in Low Power Mode, when the timer ends, when Sleepless quits, or on reboot. A GUI app can't type a password, so the installer adds a scoped sudoers rule for **exactly two commands**:
 
 ```
 <you> ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1
 ```
 
 - **Can't be widened.** sudoers matches arguments literally, no wildcards.
-- **Nothing to hijack.** No daemon, no helper script, no shell. It calls `/usr/bin/pmset` directly.
+- **Nothing to hijack.** No daemon, no root helper. It calls `/usr/bin/pmset` directly.
+- **Crash watchdog.** While lid closed is on, a small unprivileged shell loop watches the app. If the app dies or stops responding for 2 minutes, it runs `pmset -a disablesleep 0` with the same grant and exits.
 - **Always reversible.** Reboot, the floor, the timer, or `./uninstall.sh` (which proves the grant is gone).
 
 Verify a download, no Apple account needed:
