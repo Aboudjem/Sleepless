@@ -65,6 +65,7 @@ Cliquez ensuite sur la tasse dans la barre des menus, activez **Allow lid closed
 | 💻 | **Allow lid closed** | Second interrupteur optionnel pour `pmset disablesleep`. |
 | ⏲️ | **Minuterie d'extinction automatique** | Arrêt, 15 min, 30 min, 1 h, 2 h, 4 h ou 8 h avec compte à rebours en direct, puis extinction. |
 | 🔋 | **Plancher de batterie** | Extinction automatique entre 5 et 50 % sur batterie (15 % par défaut). |
+| 🌡️ | **Protection thermique** | Extinction automatique à une limite de température du SoC (60–95 °C, 80 °C par défaut) ou à un état thermique macOS (Serious par défaut). Affiche un graphique de température sur 30 minutes. |
 | 🪫 | **Mode Économie d'énergie** | S'efface quand le mode Économie d'énergie est actif, sur batterie. |
 | 🛟 | **Résistant aux plantages** | Si Sleepless quitte, plante ou se fige, le mode capot fermé se désactive tout seul. |
 | 🖥️ | **Sans dongle** | Capot fermé, sur batterie. Sans moniteur, sans fiche HDMI. |
@@ -72,6 +73,9 @@ Cliquez ensuite sur la tasse dans la barre des menus, activez **Allow lid closed
 | 🪶 | **Minuscule et native** | Un seul fichier AppKit. Sans icône dans le Dock, démon ni kext. |
 
 **Glyphe de la barre des menus :** tasse sur soucoupe = arrêt · tasse fumante = éveillé · tasse fumante pleine = capot fermé autorisé · avec un point = capot fermé sur batterie (extinction automatique active).
+
+> [!WARNING]
+> La protection thermique est un filet de sécurité sans garantie. La ventilation et des limites sûres relèvent de votre responsabilité : ne l'utilisez jamais capot fermé dans un sac ou sur une surface molle. Survolez le badge de risque dans le menu pour les détails.
 
 ## Sleepless face aux alternatives
 
@@ -100,7 +104,7 @@ Cliquez ensuite sur la tasse dans la barre des menus, activez **Allow lid closed
 
 **Keep Mac awake** maintient une assertion IOKit standard contre la veille d'inactivité. Elle ne demande aucune autorisation et macOS la libère dès que l'application se termine.
 
-**Allow lid closed** bascule `pmset disablesleep` (le drapeau `SleepDisabled` du noyau), le relit pour que la barre des menus ne mente jamais, et le rétablit à votre plancher de batterie, en mode Économie d'énergie, à la fin de la minuterie, quand Sleepless quitte ou au redémarrage. Une application graphique ne peut pas saisir de mot de passe, alors l'installateur ajoute une règle sudoers au périmètre strict pour **exactement deux commandes** :
+**Allow lid closed** bascule `pmset disablesleep` (le drapeau `SleepDisabled` du noyau), le relit pour que la barre des menus ne mente jamais, et le rétablit à votre plancher de batterie ou limite thermique, en mode Économie d'énergie, à la fin de la minuterie, quand Sleepless quitte ou au redémarrage. Une application graphique ne peut pas saisir de mot de passe, alors l'installateur ajoute une règle sudoers au périmètre strict pour **exactement deux commandes** :
 
 ```
 <you> ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1
@@ -137,7 +141,7 @@ Ces outils utilisent les assertions d'alimentation de macOS, qui arrêtent la mi
 <details>
 <summary><b>Est-ce sûr ? Va-t-il surchauffer ou vider la batterie ?</b></summary>
 
-C'est sûr pour des tâches légères et sans surveillance (téléchargements, synchronisations, point d'accès). Une charge soutenue et intense capot complètement fermé réduit la circulation de l'air, alors faites preuve de jugement. Le plancher de batterie, l'extinction automatique en mode Économie d'énergie et la minuterie l'arrêtent tous avant qu'il ne vide le Mac.
+C'est sûr pour des tâches légères et sans surveillance (téléchargements, synchronisations, point d'accès). Une charge soutenue et intense capot complètement fermé réduit la circulation de l'air, alors faites preuve de jugement. Le plancher de batterie, les limites thermiques, l'extinction automatique en mode Économie d'énergie et la minuterie l'arrêtent tous avant qu'il ne vide ou ne surchauffe le Mac. Ce sont des protections sans garantie : la ventilation reste votre responsabilité.
 </details>
 
 <details>

@@ -92,6 +92,11 @@ that flips the flag back to `0` while the Mac is awake and discharging, so a for
 "on" state can't drain the battery to empty. If the app crashes, or hangs for 2 minutes,
 while lid-closed mode is on, the watchdog above flips it back to `0` as well.
 
+Thermal protection reads CPU temperatures through the undocumented AppleSMC user client,
+with private IOKit HID calls loaded at runtime as a fallback. Both are read-only and need
+no root, but Apple could change or remove them. If no sensor can be read, the cutoff falls
+back to the macOS thermal state (Serious or worse).
+
 ## Code signing, notarization, and Gatekeeper
 
 Sleepless is **ad-hoc signed and not notarized** — it has no paid Apple Developer ID. The

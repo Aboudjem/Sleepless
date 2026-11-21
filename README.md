@@ -65,6 +65,7 @@ Then click the cup in the menu bar, turn on **Allow lid closed**, and close the 
 | 💻 | **Allow lid closed** | Opt-in second switch for `pmset disablesleep`. |
 | ⏲️ | **Auto-off timer** | Off, 15m, 30m, 1h, 2h, 4h or 8h with a live countdown, then off. |
 | 🔋 | **Battery floor** | Auto-off at 5–50% on battery (default 15%). |
+| 🌡️ | **Thermal protection** | Auto-off at a SoC temperature limit (60–95 °C, default 80 °C) or a macOS thermal state (default Serious). Shows a 30-minute temperature graph. |
 | 🪫 | **Low Power Mode** | Steps aside when LPM is on, on battery. |
 | 🛟 | **Crash-safe** | If Sleepless quits, crashes or hangs, lid-closed mode turns itself back off. |
 | 🖥️ | **No dongle** | Lid closed, on battery. No monitor, no HDMI plug. |
@@ -72,6 +73,9 @@ Then click the cup in the menu bar, turn on **Allow lid closed**, and close the 
 | 🪶 | **Tiny + native** | One AppKit file. No Dock icon, daemon, or kext. |
 
 **Menu-bar glyph:** cup on saucer = off · steaming cup = awake · solid steaming cup = lid closed allowed · plus a dot = lid closed on battery (auto-off live).
+
+> [!WARNING]
+> Thermal protection is a best-effort safety net, not a guarantee. You are responsible for ventilation and safe limits: never run lid-closed in a bag or on a soft surface. Hover the risk badge in the popover for details.
 
 ## Sleepless vs the alternatives
 
@@ -100,7 +104,7 @@ Then click the cup in the menu bar, turn on **Allow lid closed**, and close the 
 
 **Keep Mac awake** holds a standard IOKit idle-sleep assertion, which needs no permission and macOS drops the moment the app exits.
 
-**Allow lid closed** toggles `pmset disablesleep` (the kernel's `SleepDisabled` flag), reads it back so the menu bar never lies, and reverts it at your battery floor, in Low Power Mode, when the timer ends, when Sleepless quits, or on reboot. A GUI app can't type a password, so the installer adds a scoped sudoers rule for **exactly two commands**:
+**Allow lid closed** toggles `pmset disablesleep` (the kernel's `SleepDisabled` flag), reads it back so the menu bar never lies, and reverts it at your battery floor or thermal limit, in Low Power Mode, when the timer ends, when Sleepless quits, or on reboot. A GUI app can't type a password, so the installer adds a scoped sudoers rule for **exactly two commands**:
 
 ```
 <you> ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1
@@ -137,7 +141,7 @@ Those use macOS power assertions, which stop the idle timer but can't override t
 <details>
 <summary><b>Is it safe? Will it overheat or drain the battery?</b></summary>
 
-It is safe for light unattended work (downloads, syncs, a hotspot). Heavy sustained load with the lid fully shut reduces airflow, so use judgement. The battery floor, Low Power Mode auto-off, and the timer all stop it before it drains the Mac.
+It is safe for light unattended work (downloads, syncs, a hotspot). Heavy sustained load with the lid fully shut reduces airflow, so use judgement. The battery floor, thermal limits, Low Power Mode auto-off, and the timer all stop it before it drains or overheats the Mac. They are best-effort: ventilation is your responsibility.
 </details>
 
 <details>

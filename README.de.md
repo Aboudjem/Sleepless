@@ -65,6 +65,7 @@ Klicke dann auf die Tasse in der Menüleiste, schalte **Allow lid closed** ein u
 | 💻 | **Allow lid closed** | Optionaler zweiter Schalter für `pmset disablesleep`. |
 | ⏲️ | **Abschalt-Timer** | Aus, 15 min, 30 min, 1 h, 2 h, 4 h oder 8 h mit laufendem Countdown, danach aus. |
 | 🔋 | **Akku-Mindeststand** | Auto-Abschaltung bei 5–50 % im Akkubetrieb (Standard 15 %). |
+| 🌡️ | **Hitzeschutz** | Auto-Abschaltung bei einem SoC-Temperaturlimit (60–95 °C, Standard 80 °C) oder einem macOS-Thermalzustand (Standard Serious). Zeigt einen 30-Minuten-Temperaturverlauf. |
 | 🪫 | **Low Power Mode** | Tritt zur Seite, wenn LPM im Akkubetrieb aktiv ist. |
 | 🛟 | **Absturzsicher** | Beendet sich Sleepless, stürzt es ab oder hängt es, schaltet sich der Deckel-zu-Modus wieder aus. |
 | 🖥️ | **Kein Dongle** | Deckel geschlossen, im Akkubetrieb. Kein Monitor, kein HDMI-Stecker. |
@@ -72,6 +73,9 @@ Klicke dann auf die Tasse in der Menüleiste, schalte **Allow lid closed** ein u
 | 🪶 | **Winzig und nativ** | Eine AppKit-Datei. Kein Dock-Symbol, kein Daemon, keine kext. |
 
 **Menüleisten-Glyph:** Tasse auf Untertasse = aus · dampfende Tasse = wach · gefüllte dampfende Tasse = Deckel geschlossen erlaubt · dazu ein Punkt = Deckel geschlossen im Akkubetrieb (Auto-Abschaltung aktiv).
+
+> [!WARNING]
+> Der Hitzeschutz ist ein Sicherheitsnetz nach bestem Bemühen, keine Garantie. Für Belüftung und sichere Limits bist du selbst verantwortlich: Betreibe den Mac nie mit geschlossenem Deckel in einer Tasche oder auf weichem Untergrund. Fahre im Popover über das Risiko-Badge, um Details zu sehen.
 
 ## Sleepless im Vergleich zu den Alternativen
 
@@ -100,7 +104,7 @@ Klicke dann auf die Tasse in der Menüleiste, schalte **Allow lid closed** ein u
 
 **Keep Mac awake** hält eine normale IOKit-Assertion gegen den Ruhezustand im Leerlauf. Sie braucht keine Berechtigung, und macOS gibt sie frei, sobald die App endet.
 
-**Allow lid closed** schaltet `pmset disablesleep` um (das `SleepDisabled`-Flag des Kernels), liest es zurück, sodass die Menüleiste nie lügt, und setzt es bei deinem Akku-Mindeststand, im Low Power Mode, beim Ablaufen des Timers, beim Beenden von Sleepless oder beim Neustart zurück. Eine GUI-App kann kein Passwort eintippen, deshalb fügt das Installationsprogramm eine eng gefasste sudoers-Regel für **genau zwei Befehle** hinzu:
+**Allow lid closed** schaltet `pmset disablesleep` um (das `SleepDisabled`-Flag des Kernels), liest es zurück, sodass die Menüleiste nie lügt, und setzt es bei deinem Akku-Mindeststand oder Temperaturlimit, im Low Power Mode, beim Ablaufen des Timers, beim Beenden von Sleepless oder beim Neustart zurück. Eine GUI-App kann kein Passwort eintippen, deshalb fügt das Installationsprogramm eine eng gefasste sudoers-Regel für **genau zwei Befehle** hinzu:
 
 ```
 <you> ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1
@@ -137,7 +141,7 @@ Diese nutzen die Power Assertions von macOS, die den Leerlauf-Timer stoppen, abe
 <details>
 <summary><b>Ist es sicher? Überhitzt es oder zieht es den Akku leer?</b></summary>
 
-Für leichte, unbeaufsichtigte Arbeit (Downloads, Synchronisierungen, einen Hotspot) ist es sicher. Schwere Dauerlast bei ganz geschlossenem Deckel verringert den Luftstrom, geh also mit Augenmaß vor. Der Akku-Mindeststand, die Auto-Abschaltung im Low Power Mode und der Timer stoppen es alle, bevor es den Mac leerzieht.
+Für leichte, unbeaufsichtigte Arbeit (Downloads, Synchronisierungen, einen Hotspot) ist es sicher. Schwere Dauerlast bei ganz geschlossenem Deckel verringert den Luftstrom, geh also mit Augenmaß vor. Der Akku-Mindeststand, die Temperaturlimits, die Auto-Abschaltung im Low Power Mode und der Timer stoppen es alle, bevor es den Mac leerzieht oder überhitzt. Das geschieht nach bestem Bemühen: Für die Belüftung bist du verantwortlich.
 </details>
 
 <details>

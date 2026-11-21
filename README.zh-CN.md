@@ -67,6 +67,7 @@ brew install --cask aboudjem/tap/sleepless
 | 💻 | **Allow lid closed** | 可选的第二个开关，用于 `pmset disablesleep`。 |
 | ⏲️ | **自动关闭定时器** | 关闭、15 分钟、30 分钟、1、2、4 或 8 小时，带实时倒计时，到点关闭。 |
 | 🔋 | **电量下限** | 电池供电时在 5–50% 自动关闭（默认 15%）。 |
+| 🌡️ | **温度保护** | 达到 SoC 温度上限（60–95 °C，默认 80 °C）或 macOS 热状态（默认 Serious）时自动关闭。显示 30 分钟温度曲线。 |
 | 🪫 | **Low Power Mode** | 电池供电下若 LPM 开启，自动让位。 |
 | 🛟 | **崩溃保护** | Sleepless 退出、崩溃或卡死时，合盖模式会自动关闭。 |
 | 🖥️ | **无需转接** | 合盖、电池供电即可。不用显示器，不用 HDMI 插头。 |
@@ -74,6 +75,9 @@ brew install --cask aboudjem/tap/sleepless
 | 🪶 | **小巧且原生** | 一个 AppKit 文件。无 Dock 图标、守护进程或 kext。 |
 
 **菜单栏图标：** 杯子放在杯碟上 = 关闭 · 冒热气的杯子 = 唤醒 · 实心冒热气的杯子 = 允许合盖 · 再加一个点 = 电池供电下合盖（自动关闭生效中）。
+
+> [!WARNING]
+> 温度保护只是尽力而为的安全网，不是保证。通风和安全的上限由你自己负责：千万别在包里或柔软表面上合盖运行。在弹出窗口里把鼠标悬停在风险标签上可查看详情。
 
 ## Sleepless 与其他方案对比
 
@@ -102,7 +106,7 @@ brew install --cask aboudjem/tap/sleepless
 
 **Keep Mac awake** 持有一个标准的 IOKit 空闲睡眠断言，无需任何权限，应用一退出 macOS 就会释放它。
 
-**Allow lid closed** 切换 `pmset disablesleep`（内核的 `SleepDisabled` 标志），把它读回来让菜单栏绝不撒谎，并在到达你的电量下限、进入 Low Power Mode、定时器结束、Sleepless 退出或重启时把它还原。GUI 应用没法输入密码，所以安装程序会加一条范围严格限定的 sudoers 规则，**只允许两条命令**：
+**Allow lid closed** 切换 `pmset disablesleep`（内核的 `SleepDisabled` 标志），把它读回来让菜单栏绝不撒谎，并在到达你的电量下限或温度上限、进入 Low Power Mode、定时器结束、Sleepless 退出或重启时把它还原。GUI 应用没法输入密码，所以安装程序会加一条范围严格限定的 sudoers 规则，**只允许两条命令**：
 
 ```
 <you> ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1
@@ -139,7 +143,7 @@ gh attestation verify Sleepless-*.zip -R Aboudjem/Sleepless
 <details>
 <summary><b>合盖运行安全吗？会过热或耗光电池吗？</b></summary>
 
-对于下载、同步、共享热点这类轻量、无人看管的任务来说是安全的。完全合盖下长时间高负载会限制散热气流，所以请自己掂量。电量下限、Low Power Mode 自动关闭和定时器都会在 Mac 电量见底之前把它停下来。
+对于下载、同步、共享热点这类轻量、无人看管的任务来说是安全的。完全合盖下长时间高负载会限制散热气流，所以请自己掂量。电量下限、温度上限、Low Power Mode 自动关闭和定时器都会在 Mac 电量见底或过热之前把它停下来。这些都是尽力而为，通风要靠你自己负责。
 </details>
 
 <details>

@@ -65,6 +65,7 @@ Luego haz clic en la taza de la barra de menús, activa **Allow lid closed** y c
 | 💻 | **Allow lid closed** | Segundo interruptor opcional para `pmset disablesleep`. |
 | ⏲️ | **Temporizador de apagado** | Apagado, 15 min, 30 min, 1 h, 2 h, 4 h u 8 h con cuenta atrás en vivo, y luego se apaga. |
 | 🔋 | **Nivel mínimo de batería** | Apagado automático al 5–50 % con batería (15 % por defecto). |
+| 🌡️ | **Protección térmica** | Apagado automático al alcanzar un límite de temperatura del SoC (60–95 °C, 80 °C por defecto) o un estado térmico de macOS (Serious por defecto). Muestra una gráfica de temperatura de 30 minutos. |
 | 🪫 | **Low Power Mode** | Se hace a un lado cuando LPM está activado, con batería. |
 | 🛟 | **A prueba de fallos** | Si Sleepless se cierra, falla o se cuelga, el modo de tapa cerrada se desactiva solo. |
 | 🖥️ | **Sin adaptador** | Tapa cerrada, con batería. Sin monitor, sin enchufe HDMI. |
@@ -72,6 +73,9 @@ Luego haz clic en la taza de la barra de menús, activa **Allow lid closed** y c
 | 🪶 | **Diminuto y nativo** | Un archivo de AppKit. Sin icono en el Dock, daemon ni kext. |
 
 **Glifo de la barra de menús:** taza sobre platillo = apagado · taza humeante = despierto · taza humeante rellena = tapa cerrada permitida · con un punto = tapa cerrada con batería (apagado automático en vivo).
+
+> [!WARNING]
+> La protección térmica es una red de seguridad sin garantías. La ventilación y unos límites seguros son responsabilidad tuya: nunca lo uses con la tapa cerrada dentro de una bolsa o sobre una superficie blanda. Pasa el puntero sobre la etiqueta de riesgo del menú para ver los detalles.
 
 ## Sleepless frente a las alternativas
 
@@ -100,7 +104,7 @@ Luego haz clic en la taza de la barra de menús, activa **Allow lid closed** y c
 
 **Keep Mac awake** mantiene una aserción estándar de IOKit contra la suspensión por inactividad. No necesita permisos y macOS la libera en cuanto la app termina.
 
-**Allow lid closed** activa `pmset disablesleep` (el indicador `SleepDisabled` del kernel), vuelve a leerlo para que la barra de menús nunca mienta, y lo revierte en tu nivel mínimo de batería, en Low Power Mode, cuando el temporizador termina, al cerrar Sleepless o al reiniciar. Una app gráfica no puede escribir una contraseña, así que el instalador añade una regla de sudoers de alcance reducido para **exactamente dos comandos**:
+**Allow lid closed** activa `pmset disablesleep` (el indicador `SleepDisabled` del kernel), vuelve a leerlo para que la barra de menús nunca mienta, y lo revierte en tu nivel mínimo de batería o límite térmico, en Low Power Mode, cuando el temporizador termina, al cerrar Sleepless o al reiniciar. Una app gráfica no puede escribir una contraseña, así que el instalador añade una regla de sudoers de alcance reducido para **exactamente dos comandos**:
 
 ```
 <you> ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1
@@ -137,7 +141,7 @@ Esas usan aserciones de energía de macOS, que detienen el temporizador de inact
 <details>
 <summary><b>¿es seguro? ¿se sobrecalentará o agotará la batería?</b></summary>
 
-Es seguro para trabajo ligero y sin supervisión (descargas, sincronizaciones, un punto de acceso). Una carga sostenida y pesada con la tapa totalmente cerrada reduce el flujo de aire, así que usa el sentido común. El nivel mínimo de batería, el apagado automático en Low Power Mode y el temporizador lo detienen todos antes de que agote el Mac.
+Es seguro para trabajo ligero y sin supervisión (descargas, sincronizaciones, un punto de acceso). Una carga sostenida y pesada con la tapa totalmente cerrada reduce el flujo de aire, así que usa el sentido común. El nivel mínimo de batería, los límites térmicos, el apagado automático en Low Power Mode y el temporizador lo detienen todos antes de que agote o sobrecaliente el Mac. Son medidas sin garantías: la ventilación es responsabilidad tuya.
 </details>
 
 <details>

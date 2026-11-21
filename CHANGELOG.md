@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Thermal protection on AC or battery. A SoC temperature limit (60–95 °C or Off, default
+  80 °C, the mean of the hottest 60% of core sensors) and a macOS thermal-state limit
+  (Fair / Serious / Critical / Off, default Serious) turn Sleepless off and refuse to turn
+  it on while tripped. The popover shows a 30-minute temperature graph and a risk badge
+  that explains, on hover, that the limits are best-effort.
 - Crash safety for lid-closed mode. Quitting, SIGTERM/SIGINT/SIGHUP, a crash, or a hang
   of more than 2 minutes restores `pmset -a disablesleep 0`. A small unprivileged shell
   watchdog does this with the existing grant; it runs only while lid-closed mode is on.
